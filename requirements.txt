@@ -1,0 +1,12 @@
+cfgv==3.5.0
+distlib==0.4.0
+filelock==3.24.0
+identify==2.6.16
+-e git+https://github.com/Jan-Dyndor/LLM_spam.git@a2b93219e8c01d26aae9906cee867a9ec132e9a1#egg=llm_spam
+nodeenv==1.10.0
+platformdirs==4.9.1
+pre_commit==4.5.1
+python-dotenv==1.2.1
+PyYAML==6.0.3
+ruff==0.15.1
+virtualenv==20.36.1
