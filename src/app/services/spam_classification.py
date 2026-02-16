@@ -1,8 +1,8 @@
 import json
 
-from llm_spam.llm_clients.gemini import generate_llm_response
-from llm_spam.models.pydantic_schemas import LLM_Response
-from llm_spam.prompts.prompt_v1 import PROMPT
+from app.llm_clients.gemini import generate_llm_response
+from app.schemas.pydantic_schemas import LLM_Response
+from app.prompts.prompt_v1 import PROMPT
 
 
 def classify_spam(text: str) -> LLM_Response:
