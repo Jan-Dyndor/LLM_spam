@@ -1,22 +1,9 @@
 from dotenv import load_dotenv
-from fastapi import FastAPI
 from google import genai
 from google.genai import types
-import json
-from llm_spam.models.pydantic_schemas import InputText, LLM_Response
-from llm_spam.prompts.prompt_v1 import PROMPT
+
 
 load_dotenv()
-
-
-app = FastAPI()
-
-
-@app.get("/health")
-def health_check() -> dict:
-    return {"Status": "OK"}
-
-
 client = genai.Client()
 model: str = "gemini-flash-lite-latest"
 test_text: str = (
@@ -24,13 +11,7 @@ test_text: str = (
 )
 
 
-@app.post("/classify", response_model=LLM_Response)
-async def ask_llm(input: InputText):
-    llm = await generate_llm_response(input.text)
-    return llm
-
-
-def generate_llm_response(text_to_classify: str):
+def generate_llm_response(text_to_classify: str, prompt: str):
     contents = [
         types.Content(
             role="user",
@@ -40,7 +21,7 @@ def generate_llm_response(text_to_classify: str):
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        system_instruction=PROMPT,
+        system_instruction=prompt,
         thinking_config=types.ThinkingConfig(
             thinking_budget=0,
         ),
@@ -54,4 +35,4 @@ def generate_llm_response(text_to_classify: str):
     )
     if response.text is None:
         raise ValueError("Model returned empty response")
-    return json.loads(response.text)
+    return response.text
