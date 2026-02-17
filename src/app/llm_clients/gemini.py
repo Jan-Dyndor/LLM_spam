@@ -6,9 +6,7 @@ from google.genai import types
 load_dotenv()
 client = genai.Client()
 model: str = "gemini-flash-lite-latest"
-test_text: str = (
-    "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
-)
+test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
 
 
 def generate_llm_response(text_to_classify: str, prompt: str):

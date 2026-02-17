@@ -1,15 +1,22 @@
 import json
-
+from pydantic import ValidationError
+from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
 from app.llm_clients.gemini import generate_llm_response
-from app.schemas.pydantic_schemas import LLM_Response
 from app.prompts.prompt_v1 import PROMPT
+from app.schemas.pydantic_schemas import LLM_Response
 
 
 def classify_spam(text: str) -> LLM_Response:
     raw_output = generate_llm_response(text, PROMPT)
 
-    json_output = json.loads(raw_output)
+    try:
+        json_output = json.loads(raw_output)
+    except json.JSONDecodeError as error:
+        raise LLMInvalidJSONError() from error
 
-    validated_output = LLM_Response.model_validate(json_output)
+    try:
+        validated_output = LLM_Response.model_validate(json_output)
+    except ValidationError as error:
+        raise LLMInvalidValidationError() from error
 
     return validated_output
