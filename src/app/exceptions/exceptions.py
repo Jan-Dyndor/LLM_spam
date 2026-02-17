@@ -8,3 +8,10 @@ class AppExceptions(Exception):
 class LLMInvalidJSONError(AppExceptions):
     def __init__(self):
         super().__init__(message="LLM returned invalid JSON", status_code=502)
+
+
+class LLMInvalidValidationError(AppExceptions):
+    def __init__(
+        self,
+    ):
+        super().__init__(message="LLM returned invalid Pydantic Model", status_code=502)
