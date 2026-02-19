@@ -74,3 +74,7 @@ LLM_SPAM_CLASSIFIER/
 ├── requirements.txt
 └── README.md
 ```
+
+## ADD LATER
+
+- to pip isntall pre-commit and then isnall pre-commit for ruff
