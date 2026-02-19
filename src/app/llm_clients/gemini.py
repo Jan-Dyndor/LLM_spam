@@ -1,15 +1,22 @@
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from functools import lru_cache
 
-
-load_dotenv()
-client = genai.Client()
+test_text: str = (
+    "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
+)
 model: str = "gemini-flash-lite-latest"
-test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
+
+
+@lru_cache
+def get_client():
+    load_dotenv()
+    return genai.Client()
 
 
 def generate_llm_response(text_to_classify: str, prompt: str):
+    client = get_client()
     contents = [
         types.Content(
             role="user",
