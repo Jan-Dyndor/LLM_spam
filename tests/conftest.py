@@ -6,6 +6,11 @@ from app.schemas.pydantic_schemas import LLM_Response
 
 
 @pytest.fixture
+def health_happy_path() -> dict:
+    return {"Status": "OK"}
+
+
+@pytest.fixture
 def user_input() -> str:
     return "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
 

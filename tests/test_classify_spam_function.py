@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
 from app.schemas.pydantic_schemas import LLM_Response
