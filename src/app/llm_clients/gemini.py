@@ -3,9 +3,7 @@ from google import genai
 from google.genai import types
 from functools import lru_cache
 
-test_text: str = (
-    "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
-)
+test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
 model: str = "gemini-flash-lite-latest"
 
 
