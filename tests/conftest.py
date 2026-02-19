@@ -103,3 +103,8 @@ def Model_Response_Wrong_Validation_Reason() -> str:
    "reason":""
     }
     """
+
+
+@pytest.fixture
+def user_input_wrong_too_long() -> str:
+    return "A" * 501
