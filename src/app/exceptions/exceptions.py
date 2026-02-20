@@ -19,4 +19,4 @@ class LLMInvalidValidationError(AppExceptions):
 
 class LLMError(AppExceptions):
     def __init__(self):
-        super().__init__(message="LLM service unavailable", status_code=502)
+        super().__init__(message="LLM API service unavailable", status_code=502)

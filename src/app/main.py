@@ -24,6 +24,14 @@ async def app_exception_handler(request: Request, exception: AppExceptions):
     )
 
 
+# @app.exception_handler(
+#     RetryError,
+# )
+# async def app_exception_handler_tenacity(request: Request, exception: RetryError):
+#     print(exception.last_attempt)
+#     return JSONResponse(content={"message": "ERORR RETRY"}, status_code=503)
+
+
 @app.middleware("http")
 async def add_loggin(request: Request, call_next):
 

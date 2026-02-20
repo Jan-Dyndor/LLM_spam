@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv",
     "ruff",
     "loguru",
+    "tenacity",
 ]
 
 [tool.setuptools]

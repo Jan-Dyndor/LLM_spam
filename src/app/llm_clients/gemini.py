@@ -44,6 +44,7 @@ def generate_llm_response(text_to_classify: str, prompt: str):
             contents=contents,
             config=generate_content_config,
         )
+
     except Exception as e:
         logger.error(f"Google AI model {model} faled to respond")
         raise LLMError() from e
