@@ -47,7 +47,10 @@ async def add_loggin(request: Request, call_next):
             logger.exception("Unhandled exception during request")
             raise
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(f"Completed {response.status_code} in {duration_ms:.2f}ms")
+        if response.status_code > 500:
+            logger.error(f"ERROR {response.status_code} in {duration_ms:.2f}ms")
+        else:
+            logger.info(f"Completed {response.status_code} in {duration_ms:.2f}ms")
         return response
 
 

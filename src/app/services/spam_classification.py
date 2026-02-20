@@ -13,6 +13,8 @@ from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationE
 from app.logging.logg import logger
 from app.retry_utils.retry import should_retry
 from app.schemas.pydantic_schemas import LLM_Response
+from app.llm_clients.gemini import generate_llm_response
+from app.prompts.prompt_v1 import PROMPT
 import logging
 
 
@@ -20,19 +22,12 @@ import logging
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=3),
     retry=retry_if_exception(should_retry),
-    reraise=True,
     before_sleep=before_sleep_log(logger=logger, log_level=logging.WARNING),
+    reraise=True,
 )
 def classify_spam(text: str) -> LLM_Response:
 
-    # raw_output = generate_llm_response(text, PROMPT)
-    raw_output = """ 
-    {
-   label:spam,
-   confidence:0.95,
-   reason:Contains unsolicited promotion for Viagra, a common spam topic."
-    }
-    """
+    raw_output = generate_llm_response(text, PROMPT)
 
     logger.info("Validation of AI output")
     try:

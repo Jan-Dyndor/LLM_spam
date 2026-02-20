@@ -7,10 +7,10 @@ from app.schemas.pydantic_schemas import LLM_Response
 from app.services.spam_classification import classify_spam
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_happy(mock_llm_responce, user_input: str, Model_Response_Happy: str):
     mock_llm_responce.return_value = Model_Response_Happy
-
     result = classify_spam(user_input)
 
     assert isinstance(result, LLM_Response)
@@ -22,6 +22,7 @@ def test_classify_happy(mock_llm_responce, user_input: str, Model_Response_Happy
     )
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_invalid_json(mock_llm, user_input: str, Model_Response_Not_Json: str):
     mock_llm.return_value = Model_Response_Not_Json
@@ -29,6 +30,7 @@ def test_classify_invalid_json(mock_llm, user_input: str, Model_Response_Not_Jso
         classify_spam(user_input)
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_wrong_validation_label(
     mock_llm, user_input, Model_Response_Wrong_Validation_Label
@@ -38,6 +40,7 @@ def test_classify_wrong_validation_label(
         classify_spam(user_input)
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_wrong_validation_confidence_1(
     mock_llm, user_input, Model_Response_Wrong_Validation_Confidence_1
@@ -47,6 +50,7 @@ def test_classify_wrong_validation_confidence_1(
         classify_spam(user_input)
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_wrong_validation_confdence_2(
     mock_llm, user_input, Model_Response_Wrong_Validation_Confidence_2
@@ -56,6 +60,7 @@ def test_classify_wrong_validation_confdence_2(
         classify_spam(user_input)
 
 
+@patch("tenacity.nap.time.sleep")
 @patch("app.services.spam_classification.generate_llm_response")
 def test_classify_wrong_validation_reason(
     mock_llm, user_input, Model_Response_Wrong_Validation_Reason
