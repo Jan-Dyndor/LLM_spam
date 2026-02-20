@@ -9,7 +9,7 @@ from app.exceptions.exceptions import LLM_API_Error
 from app.logging.logg import logger
 
 test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
-model: str = "gemini-flash-lite-latest    sdfsfdsdf. "
+model: str = "gemini-flash-lite-latest"
 
 
 @lru_cache
