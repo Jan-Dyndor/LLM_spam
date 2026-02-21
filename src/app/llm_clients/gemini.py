@@ -49,7 +49,7 @@ def generate_llm_response(text_to_classify: str, prompt: str):
     except Exception as error:
         error_code = getattr(error, "code", None)
         error_mess = getattr(error, "message", None)
-        logger.error(
+        logger.exception(
             f"Google AI model {model} faled to respond wich code {error_code} and message {error_mess}"
         )
         raise LLM_API_Error(api_status_code=error_code) from error
