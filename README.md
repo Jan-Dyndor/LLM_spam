@@ -78,3 +78,5 @@ LLM_SPAM_CLASSIFIER/
 ## ADD LATER
 
 - to pip isntall pre-commit and then isnall pre-commit for ruff
+- write about tenacity retry -pplied @retry to classify_spam, allowing exceptions from generate_llm_response to propagate and be handled by Tenacity. Introduced should_retry to control retry behavior based on API status codes and custom LLM exceptions.
+  Added a new LLM_API_Error carrying the underlying API status code.
