@@ -17,6 +17,7 @@ class LLMInvalidValidationError(AppExceptions):
         super().__init__(message="LLM returned invalid Pydantic Model", status_code=502)
 
 
-class LLMError(AppExceptions):
-    def __init__(self):
-        super().__init__(message="LLM service unavailable", status_code=502)
+class LLM_API_Error(AppExceptions):
+    def __init__(self, api_status_code):
+        self.api_status_code = api_status_code
+        super().__init__(message="LLM API service unavailable", status_code=502)

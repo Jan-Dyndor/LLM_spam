@@ -1,15 +1,34 @@
 import json
+
 from pydantic import ValidationError
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
+
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
+from app.logging.logg import logger
+from app.retry_utils.retry import should_retry
+from app.schemas.pydantic_schemas import LLM_Response
 from app.llm_clients.gemini import generate_llm_response
 from app.prompts.prompt_v1 import PROMPT
-from app.schemas.pydantic_schemas import LLM_Response
-from app.logging.logg import logger
+import logging
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=3),
+    retry=retry_if_exception(should_retry),
+    before_sleep=before_sleep_log(logger=logger, log_level=logging.WARNING),
+    reraise=True,
+)
 def classify_spam(text: str) -> LLM_Response:
 
     raw_output = generate_llm_response(text, PROMPT)
+
     logger.info("Validation of AI output")
     try:
         json_output = json.loads(raw_output)

@@ -4,7 +4,8 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from app.exceptions.exceptions import LLMError
+
+from app.exceptions.exceptions import LLM_API_Error
 from app.logging.logg import logger
 
 test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
@@ -44,14 +45,19 @@ def generate_llm_response(text_to_classify: str, prompt: str):
             contents=contents,
             config=generate_content_config,
         )
-    except Exception as e:
-        logger.error(f"Google AI model {model} faled to respond")
-        raise LLMError() from e
+
+    except Exception as error:
+        error_code = getattr(error, "code", None)
+        error_mess = getattr(error, "message", None)
+        logger.exception(
+            f"Google AI model {model} faled to respond wich code {error_code} and message {error_mess}"
+        )
+        raise LLM_API_Error(api_status_code=error_code) from error
 
     duration_ms = (time.perf_counter() - start_time) * 1000
 
     if response.text is None:
-        logger.error(f"Google AI model {model} returned empty response")
-        raise ValueError("Model returned empty response")
+        logger.error(f"Google AI model {model} returned empty response - retry")
+        raise LLM_API_Error(api_status_code=-1)
     logger.info(f"Google AI model {model} returned OK in {duration_ms:.2f}ms")
     return response.text

@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from app.schemas.pydantic_schemas import LLM_Response
 
 

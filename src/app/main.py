@@ -24,6 +24,14 @@ async def app_exception_handler(request: Request, exception: AppExceptions):
     )
 
 
+# @app.exception_handler(
+#     RetryError,
+# )
+# async def app_exception_handler_tenacity(request: Request, exception: RetryError):
+#     print(exception.last_attempt)
+#     return JSONResponse(content={"message": "ERORR RETRY"}, status_code=503)
+
+
 @app.middleware("http")
 async def add_loggin(request: Request, call_next):
 
@@ -39,7 +47,10 @@ async def add_loggin(request: Request, call_next):
             logger.exception("Unhandled exception during request")
             raise
         duration_ms = (time.perf_counter() - start_time) * 1000
-        logger.info(f"Completed {response.status_code} in {duration_ms:.2f}ms")
+        if response.status_code > 500:
+            logger.error(f"ERROR {response.status_code} in {duration_ms:.2f}ms")
+        else:
+            logger.info(f"Completed {response.status_code} in {duration_ms:.2f}ms")
         return response
 
 
