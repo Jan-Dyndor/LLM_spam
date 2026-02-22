@@ -16,6 +16,7 @@ dependencies = [
     "ruff",
     "loguru",
     "tenacity",
+    "redis",
 ]
 
 [tool.setuptools]
