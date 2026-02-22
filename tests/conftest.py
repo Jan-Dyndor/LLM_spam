@@ -1,6 +1,7 @@
 import json
 
 import pytest
+
 from app.schemas.pydantic_schemas import LLM_Response
 
 
@@ -107,3 +108,21 @@ def Model_Response_Wrong_Validation_Reason() -> str:
 @pytest.fixture
 def user_input_wrong_too_long() -> str:
     return "A" * 501
+
+
+# Fixtures to test Redis
+
+
+@pytest.fixture
+def Model_Response_Happy_REDIS() -> str:
+    output_string = """ 
+    {
+   "label":"spam",
+   "confidence":0.95,
+   "reason":"Contains unsolicited promotion for Viagra, a common spam topic."
+    }
+    """
+
+    output_string_json = json.loads(output_string)
+    model_validated = LLM_Response.model_validate(output_string_json)
+    return model_validated.model_dump_json()

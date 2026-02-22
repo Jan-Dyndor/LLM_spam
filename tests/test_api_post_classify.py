@@ -1,11 +1,15 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
+
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
 from app.main import app
-
+from app.routers.v1 import get_reddis
 
 client = TestClient(app)
+
+
+# NO CACHE TESTS
 
 
 def test_health_happy(health_happy_path):
@@ -15,8 +19,17 @@ def test_health_happy(health_happy_path):
 
 
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_happy(mock_llm, user_input, Model_Response_Happy_JSON_Validated):
+def test_ask_llm_happy(
+    mock_llm,
+    user_input,
+    Model_Response_Happy_JSON_Validated,
+    Model_Response_Happy_REDIS,
+):
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
+    fake_redis = AsyncMock()
+    fake_redis.get.return_value = None
+
+    app.dependency_overrides[get_reddis] = lambda: fake_redis
 
     response = client.post("/v1/classify", json={"text": user_input})
     assert response.status_code == 200
@@ -26,6 +39,10 @@ def test_ask_llm_happy(mock_llm, user_input, Model_Response_Happy_JSON_Validated
         response.json()["reason"]
         == "Contains unsolicited promotion for Viagra, a common spam topic."
     )
+
+    fake_redis.set.assert_awaited_once_with(user_input, Model_Response_Happy_REDIS)
+
+    app.dependency_overrides.clear()
 
 
 def test_ask_llm_wrong_user_input(user_input_wrong_empty):
@@ -57,3 +74,6 @@ def test_ask_llm_wrong_llm_response_walidation(mock_llm, user_input):
     response = client.post("/v1/classify", json={"text": user_input})
     assert response.status_code == 502
     assert response.json()["message"] == "LLM returned invalid Pydantic Model"
+
+
+# CACHE HIT TESTS
