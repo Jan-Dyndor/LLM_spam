@@ -133,3 +133,18 @@ def Model_Response_Happy_REDIS() -> str:
     output_string_json = json.loads(output_string)
     model_validated = LLM_Response.model_validate(output_string_json)
     return model_validated.model_dump_json()
+
+
+@pytest.fixture
+def Model_Response_Happy_REDIS_Response() -> bytes:
+    output_string = """ 
+    {
+   "label":"spam",
+   "confidence":0.95,
+   "reason":"Contains unsolicited promotion for Viagra, a common spam topic."
+    }
+    """
+    output_string_json = json.loads(output_string)
+    model_validated = LLM_Response.model_validate(output_string_json)
+    model_val_str = model_validated.model_dump_json()
+    return model_val_str.encode()

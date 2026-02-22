@@ -62,4 +62,3 @@ async def add_loggin(request: Request, call_next):
 @app.get("/health")
 def health_check() -> dict:
     return {"Status": "OK"}
-    return {"Status": "OK"}
