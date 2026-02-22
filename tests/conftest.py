@@ -1,8 +1,9 @@
 import json
-
+from app.main import app
 import pytest
-
+from unittest.mock import AsyncMock
 from app.schemas.pydantic_schemas import LLM_Response
+from app.routers.v1 import get_reddis
 
 
 @pytest.fixture
@@ -111,6 +112,12 @@ def user_input_wrong_too_long() -> str:
 
 
 # Fixtures to test Redis
+@pytest.fixture
+def override_redis():
+    fake_redis = AsyncMock()
+    app.dependency_overrides[get_reddis] = lambda: fake_redis
+    yield fake_redis
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
