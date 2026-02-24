@@ -81,3 +81,4 @@ LLM_SPAM_CLASSIFIER/
 - write about tenacity retry -pplied @retry to classify_spam, allowing exceptions from generate_llm_response to propagate and be handled by Tenacity. Introduced should_retry to control retry behavior based on API status codes and custom LLM exceptions.
   Added a new LLM_API_Error carrying the underlying API status code.
 - Added Redis cache to /classify endpoint. It allows to check whether someone already asked AI to classify the same string. If yes : return cahced version if no ask LLM model. Added TTl of 300 second (5 min) to each user query to LLM. Remember. to set up maxmemory in dockercompose file. USer also can set up maxmemory and policy in Redis in redis.conf file - write about that
+- Add that user has to add his/hers Google Srudio API Key in .env file in root of the projekct anemd as GEMINI_API_KEY=......

@@ -4,7 +4,7 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-
+from app.config.settings import settings
 from app.exceptions.exceptions import LLM_API_Error
 from app.logging.logg import logger
 
@@ -22,7 +22,8 @@ def get_client():
 def generate_llm_response(text_to_classify: str, prompt: str):
     start_time = time.perf_counter()
     logger.info("Send request to Google AI API")
-    client = get_client()
+    # client = get_client()
+    client = genai.Client(api_key=settings.google_api_key.get_secret_value())
     contents = [
         types.Content(
             role="user",
