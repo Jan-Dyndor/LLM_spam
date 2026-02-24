@@ -1,8 +1,10 @@
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
 
 from app.exceptions.exceptions import AppExceptions
 from app.logging.logg import logger, set_up_logging
@@ -11,7 +13,18 @@ from app.routers.v1 import router as v1_router
 set_up_logging()
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Before start
+    app.state.redis = Redis(host="localhost", port=6379)
+    yield
+    #  SHUTDOWN of application
+    await app.state.redis.flushdb()  # After each aplication run clear Redis DB
+    await app.state.redis.aclose()  # close redis DB
+
+
+app = FastAPI(lifespan=lifespan)
+
 app.include_router(v1_router)
 
 
@@ -22,14 +35,6 @@ async def app_exception_handler(request: Request, exception: AppExceptions):
     return JSONResponse(
         status_code=exception.status_code, content={"message": exception.message}
     )
-
-
-# @app.exception_handler(
-#     RetryError,
-# )
-# async def app_exception_handler_tenacity(request: Request, exception: RetryError):
-#     print(exception.last_attempt)
-#     return JSONResponse(content={"message": "ERORR RETRY"}, status_code=503)
 
 
 @app.middleware("http")
