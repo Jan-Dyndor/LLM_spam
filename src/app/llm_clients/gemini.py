@@ -1,12 +1,15 @@
 import time
 from functools import lru_cache
 
-from dotenv import load_dotenv
 from google import genai
+from app.config.settings import get_settings
 from google.genai import types
-from app.config.settings import settings
+
+from app.config.settings import Settings
 from app.exceptions.exceptions import LLM_API_Error
 from app.logging.logg import logger
+
+# from app.main import get_settings
 
 test_text: str = "get the most out of life ! viagra has helped millions of men !\nfor a good cause , wrongdoing is virtuous .\ni don ' t want to be anyone but the person i am .\nthe athlete makes himself , the coach doesn ' t make the athlete ."
 model: str = "gemini-flash-lite-latest"
@@ -14,16 +17,15 @@ model: str = "gemini-flash-lite-latest"
 
 @lru_cache
 def get_client():
-    load_dotenv()
+    settings: Settings = get_settings()
     logger.info("Created API client")
-    return genai.Client()
+    return genai.Client(api_key=settings.gemini_api_key.get_secret_value())
 
 
 def generate_llm_response(text_to_classify: str, prompt: str):
     start_time = time.perf_counter()
     logger.info("Send request to Google AI API")
-    # client = get_client()
-    client = genai.Client(api_key=settings.google_api_key.get_secret_value())
+    client = get_client()
     contents = [
         types.Content(
             role="user",

@@ -10,6 +10,7 @@ from app.exceptions.exceptions import AppExceptions
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
 
+
 set_up_logging()
 
 
