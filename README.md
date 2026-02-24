@@ -80,4 +80,4 @@ LLM_SPAM_CLASSIFIER/
 - to pip isntall pre-commit and then isnall pre-commit for ruff
 - write about tenacity retry -pplied @retry to classify_spam, allowing exceptions from generate_llm_response to propagate and be handled by Tenacity. Introduced should_retry to control retry behavior based on API status codes and custom LLM exceptions.
   Added a new LLM_API_Error carrying the underlying API status code.
-- Added Redis cache to /classify endpoint. It allows to check whether someone already asked AI to classify the same string. If yes : return cahced version if no ask LLM model
+- Added Redis cache to /classify endpoint. It allows to check whether someone already asked AI to classify the same string. If yes : return cahced version if no ask LLM model. Added TTl of 300 second (5 min) to each user query to LLM
