@@ -86,7 +86,6 @@ def test_ask_llm_cache_hit(
 
     override_redis.get.return_value = Model_Response_Happy_REDIS_Response
     response = client.post("/v1/classify", json={"text": user_input})
-    print(response)
     assert response.status_code == 200
     assert response.json()["label"] == "spam"
     assert response.json()["confidence"] == 0.95
