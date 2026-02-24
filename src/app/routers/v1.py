@@ -21,7 +21,7 @@ async def ask_llm(input: InputText, redis: Redis = Depends(get_reddis)):
     else:
         model_output = classify_spam(input.text)
         model_output_json = model_output.model_dump_json()
-        await redis.set(input.text, model_output_json)
+        await redis.setex(input.text, 300, model_output_json)
         return model_output
 
     return LLM_Response.model_validate_json(value)

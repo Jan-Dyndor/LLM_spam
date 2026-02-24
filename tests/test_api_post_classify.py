@@ -37,7 +37,9 @@ def test_ask_llm_happy(
         == "Contains unsolicited promotion for Viagra, a common spam topic."
     )
 
-    override_redis.set.assert_awaited_once_with(user_input, Model_Response_Happy_REDIS)
+    override_redis.setex.assert_awaited_once_with(
+        user_input, 300, Model_Response_Happy_REDIS
+    )
 
 
 def test_ask_llm_wrong_user_input(user_input_wrong_empty, override_redis):
@@ -65,7 +67,7 @@ def test_ask_llm_wrong_llm_response_json(mock_llm, user_input, override_redis):
     response = client.post("/v1/classify", json={"text": user_input})
     assert response.status_code == 502
     assert response.json()["message"] == "LLM returned invalid JSON"
-    override_redis.set.assert_not_awaited()
+    override_redis.setex.assert_not_awaited()
 
 
 @patch("app.routers.v1.classify_spam")
@@ -75,7 +77,7 @@ def test_ask_llm_wrong_llm_response_walidation(mock_llm, user_input, override_re
     response = client.post("/v1/classify", json={"text": user_input})
     assert response.status_code == 502
     assert response.json()["message"] == "LLM returned invalid Pydantic Model"
-    override_redis.set.assert_not_awaited()
+    override_redis.setex.assert_not_awaited()
 
 
 # CACHE HIT TESTS
