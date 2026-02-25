@@ -5,6 +5,7 @@ from app.logging.logg import logger
 from app.schemas.pydantic_schemas import InputText, LLM_Response
 from app.services.spam_classification import classify_spam
 
+
 router = APIRouter(prefix="/v1", tags=["v1"])
 
 

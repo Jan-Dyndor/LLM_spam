@@ -6,18 +6,23 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 
+from app.config.settings import get_settings
 from app.exceptions.exceptions import AppExceptions
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
-
+from app.llm_clients.gemini import get_client
 
 set_up_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Before start
-    app.state.redis = Redis(host="localhost", port=6379)
+    # Before start of app
+    settings = get_settings()  # Load ENV first = Fail Fast
+    get_client()  # Load Client = Fail Fast
+    app.state.redis = Redis(
+        host=settings.redis.host, port=settings.redis.port, db=settings.redis.db
+    )
     yield
     #  SHUTDOWN of application
     await app.state.redis.flushdb()  # After each aplication run clear Redis DB
