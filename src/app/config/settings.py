@@ -29,5 +29,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    logger.warning("TWORZRE SETTINGS I CZYTAM ENV ")
+    logger.info("Reading .ENV file")
     return Settings()  # type: ignore

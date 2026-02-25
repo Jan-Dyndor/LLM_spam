@@ -1,5 +1,6 @@
-from loguru import logger
 import sys
+
+from loguru import logger
 
 
 def set_up_logging():
@@ -17,3 +18,4 @@ def set_up_logging():
             "- <level>{message}</level>"
         ),
     )
+    logger.configure(extra={"request_id": "DEFAULT REQUEST_ID VALUE"})
