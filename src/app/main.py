@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from redis.asyncio import Redis
+from redis.asyncio import Redis, ConnectionError
+
+# import redis.asyncio as r
 
 from app.exceptions.exceptions import AppExceptions
 from app.logging.logg import logger, set_up_logging
@@ -16,7 +18,15 @@ set_up_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Before start
+
     app.state.redis = Redis(host="localhost", port=6379)
+
+    try:
+        await app.state.redis.ping()  # type: ignore
+    except ConnectionError:
+        logger.critical("Redis Connection Failed")
+        raise
+
     yield
     #  SHUTDOWN of application
     await app.state.redis.flushdb()  # After each aplication run clear Redis DB
