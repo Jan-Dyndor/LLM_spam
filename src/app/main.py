@@ -4,19 +4,28 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from redis.asyncio import Redis, ConnectionError
+from redis.asyncio import ConnectionError, Redis
+
+from app.config.settings import get_settings
+from app.exceptions.exceptions import AppExceptions
+from app.llm_clients.gemini import get_client
+from app.logging.logg import logger, set_up_logging
+from app.routers.v1 import router as v1_router
 
 # import redis.asyncio as r
 
-from app.exceptions.exceptions import AppExceptions
-from app.logging.logg import logger, set_up_logging
-from app.routers.v1 import router as v1_router
 
 set_up_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Before start of app
+    settings = get_settings()  # Load ENV first = Fail Fast
+    get_client()  # Load Client = Fail Fast
+    app.state.redis = Redis(
+        host=settings.redis.host, port=settings.redis.port, db=settings.redis.db
+    )
     # Before start
 
     app.state.redis = Redis(host="localhost", port=6379)
@@ -71,4 +80,5 @@ async def add_loggin(request: Request, call_next):
 
 @app.get("/health")
 def health_check() -> dict:
+    return {"Status": "OK"}
     return {"Status": "OK"}
