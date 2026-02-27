@@ -11,8 +11,7 @@ from app.exceptions.exceptions import AppExceptions
 from app.llm_clients.gemini import get_client
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
-
-# import redis.asyncio as r
+from app.db.database import Base, engine
 
 
 set_up_logging()
@@ -22,6 +21,9 @@ set_up_logging()
 async def lifespan(app: FastAPI):
     # Before start of app
     settings = get_settings()  # Load ENV first = Fail Fast
+    # create Database
+    Base.metadata.create_all(bind=engine)
+
     get_client()  # Load Client = Fail Fast
     app.state.redis = Redis(
         host=settings.redis.host, port=settings.redis.port, db=settings.redis.db

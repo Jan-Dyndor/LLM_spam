@@ -13,11 +13,11 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    spam: Mapped[list[Spam]] = relationship(back_populates="user")  # noqa: F821
+    spam: Mapped[list[Predictions]] = relationship(back_populates="user")  # noqa: F821
 
 
-class Spam(Base):
-    __tablename__ = "spam"  # type: ignore
+class Predictions(Base):
+    __tablename__ = "predictions"  # type: ignore
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=False, index=True
