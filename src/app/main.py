@@ -26,9 +26,6 @@ async def lifespan(app: FastAPI):
     app.state.redis = Redis(
         host=settings.redis.host, port=settings.redis.port, db=settings.redis.db
     )
-    # Before start
-
-    app.state.redis = Redis(host="localhost", port=6379)
 
     try:
         await app.state.redis.ping()  # type: ignore
@@ -80,5 +77,4 @@ async def add_loggin(request: Request, call_next):
 
 @app.get("/health")
 def health_check() -> dict:
-    return {"Status": "OK"}
     return {"Status": "OK"}
