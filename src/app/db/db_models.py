@@ -20,7 +20,7 @@ class Predictions(Base):
     __tablename__ = "predictions"  # type: ignore
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
+        ForeignKey("users.id"), nullable=True, index=True
     )
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     input_text: Mapped[str] = mapped_column(String, nullable=False)

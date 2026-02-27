@@ -31,10 +31,10 @@ def get_reddis(request: Request) -> Redis:
 # Later we will do JWT authentication adn get rid of query_param user_id!! TODO
 @router.post("/classify", response_model=LLM_Response)
 async def ask_llm(
-    user_id: int,
     input: InputText,
     redis: Redis = Depends(get_reddis),
     db: Session = Depends(get_db),
+    user_id: int | None = None,
 ):
 
     value = await redis.get(input.text)  # string
@@ -49,23 +49,24 @@ async def ask_llm(
         # return value
 
     # model_output_validated = LLM_Response.model_validate_json(value)
-    result_user_id = db.execute(select(User).where(User.id == user_id))
-    user = result_user_id.scalars().first()
-    logger.warning("Linia 54")
-    if user:
-        logger.warning("MAM USERA")
-        new_prediction = Predictions(
-            user_id=user_id,
-            model_name="TEST",
-            input_text=input.text,
-            label=value.label,
-            confidence=value.confidence,
-            reason=value.reason,
-            prompt_version="v1",
-        )
-        db.add(new_prediction)
-        db.commit()
-        db.refresh(new_prediction)
+    if user_id:
+        result_user_id = db.execute(select(User).where(User.id == user_id))
+        user = result_user_id.scalars().first()
+        logger.warning("Linia 54")
+        if user:
+            logger.warning("MAM USERA")
+            new_prediction = Predictions(
+                user_id=user_id,
+                model_name="TEST",
+                input_text=input.text,
+                label=value.label,
+                confidence=value.confidence,
+                reason=value.reason,
+                prompt_version="v1",
+            )
+            db.add(new_prediction)
+            db.commit()
+            db.refresh(new_prediction)
 
     return value
 
