@@ -18,6 +18,7 @@ dependencies = [
     "tenacity",
     "redis",
     "pydantic_settings",
+    "sqlalchemy",
 ]
 
 [tool.setuptools]
