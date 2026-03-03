@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import Literal
 from datetime import datetime
 
@@ -24,19 +24,20 @@ class UserCreate(UserBase):
 
 
 class UserResponse(UserBase):
-    # model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
 
 
 class PredictionsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
     model_name: str
     input_text: str
     label: str
-    confience: float
+    confidence: float
     reason: str
-    prompt_version: int
-    is_spam: int
+    prompt_version: str
+    is_spam: int | None = None
     date: datetime

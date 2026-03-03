@@ -7,6 +7,7 @@ from app.schemas.pydantic_schemas import (
     LLM_Response,
     UserCreate,
     UserResponse,
+    PredictionsResponse,
 )
 from app.services.spam_classification import classify_spam
 
@@ -52,12 +53,11 @@ async def ask_llm(
     if user_id:
         result_user_id = db.execute(select(User).where(User.id == user_id))
         user = result_user_id.scalars().first()
-        logger.warning("Linia 54")
         if user:
-            logger.warning("MAM USERA")
+            logger.info("Provided user ID")
             new_prediction = Predictions(
                 user_id=user_id,
-                model_name="TEST",
+                model_name="TEST",  # TODO ADD model name and all from settings config
                 input_text=input.text,
                 label=value.label,
                 confidence=value.confidence,
@@ -71,7 +71,7 @@ async def ask_llm(
     return value
 
 
-@router.post("/users", response_model=UserResponse)
+@router.post("/create_user", response_model=UserResponse)
 async def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
     result_username = db.execute(select(User).where(User.username == user.username))
@@ -92,3 +92,16 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return new_user
+
+
+@router.get("/user_posts/{user_id}", response_model=list[PredictionsResponse])
+async def show_user_predictions(user_id: int, db: Session = Depends(get_db)):
+    result_user = db.execute(select(User).where(User.id == user_id))
+
+    existing_user = result_user.scalars().first()
+
+    if not existing_user:
+        raise HTTPException(status_code=404, detail=f"No user with ID {user_id}")
+
+    predictions = existing_user.spam
+    return predictions
