@@ -19,8 +19,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    # Empty for now, after adding JWT will be needed
-    pass
+    password: str = Field(min_length=8, max_length=50)
 
 
 class UserResponse(UserBase):
@@ -41,3 +40,9 @@ class PredictionsResponse(BaseModel):
     prompt_version: str
     is_spam: int | None = None
     date: datetime
+
+
+# JWT
+class Token(BaseModel):
+    access_token: str
+    token_type: str

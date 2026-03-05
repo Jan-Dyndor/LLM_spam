@@ -19,8 +19,10 @@ set_up_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    get_settings.cache_clear()
     # Before start of app
     settings = get_settings()  # Load ENV first = Fail Fast
+
     # create Database
     Base.metadata.create_all(bind=engine)
 

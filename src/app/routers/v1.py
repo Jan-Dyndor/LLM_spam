@@ -1,20 +1,32 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
-from redis.asyncio import Redis
+from datetime import timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.security import OAuth2PasswordRequestForm
+from redis.asyncio import Redis
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+from app.db.db_models import Predictions, User
 from app.logging.logg import logger
 from app.schemas.pydantic_schemas import (
     InputText,
     LLM_Response,
+    PredictionsResponse,
     UserCreate,
     UserResponse,
-    PredictionsResponse,
+    Token,
 )
 from app.services.spam_classification import classify_spam
+from app.authentication.auth import (
+    hash_password,
+    verify_password,
+    oauth2_scheme,
+    verify_access_token,
+    create_access_token,
+)
+from app.config.settings import get_settings, Settings
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from app.db.database import get_db
-from app.db.db_models import User, Predictions
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -23,22 +35,34 @@ def get_reddis(request: Request) -> Redis:
     return request.app.state.redis
 
 
-# Temporary fix - passing user_id in request body.
-# Right now if user is in databese - so ealier created account and now his/her ID we assoscaite it with inforamtion in predictions table
-# And allow user to save its question about spam to LLM
-# If user is not in db his/her ask will not be saved
-
-
-# Later we will do JWT authentication adn get rid of query_param user_id!! TODO
 @router.post("/classify", response_model=LLM_Response)
 async def ask_llm(
     input: InputText,
     redis: Redis = Depends(get_reddis),
     db: Session = Depends(get_db),
-    user_id: int | None = None,
+    token: str = Depends(oauth2_scheme),
+    settings: Settings = Depends(get_settings),
 ):
+    user_id = verify_access_token(token, settings)
 
-    value = await redis.get(input.text)  # string
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError):
+        logger.exception(f"Issue while converting user_id {user_id} to int")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    value = await redis.get(input.text)
     if value is not None:
         logger.info("CACHE HIT")
         value = LLM_Response.model_validate_json(value)
@@ -46,27 +70,24 @@ async def ask_llm(
         value = classify_spam(input.text)
         model_output_json = value.model_dump_json()
         await redis.setex(input.text, 300, model_output_json)
-        # value = LLM_Response.model_validate_json(model_output_json)
-        # return value
 
-    # model_output_validated = LLM_Response.model_validate_json(value)
     if user_id:
         result_user_id = db.execute(select(User).where(User.id == user_id))
         user = result_user_id.scalars().first()
         if user:
-            logger.info("Provided user ID")
             new_prediction = Predictions(
                 user_id=user_id,
-                model_name="TEST",  # TODO ADD model name and all from settings config
+                model_name=settings.ai_model.model_name,
                 input_text=input.text,
                 label=value.label,
                 confidence=value.confidence,
                 reason=value.reason,
-                prompt_version="v1",
+                prompt_version=settings.ai_model.promp_version,
             )
             db.add(new_prediction)
             db.commit()
             db.refresh(new_prediction)
+            logger.info(f"Saved user {user_id_int} input to DB")
 
     return value
 
@@ -74,19 +95,23 @@ async def ask_llm(
 @router.post("/create_user", response_model=UserResponse)
 async def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
-    result_username = db.execute(select(User).where(User.username == user.username))
-
+    result_username = db.execute(
+        select(User).where(func.lower(User.username) == user.username.lower())
+    )
+    result_email = db.execute(
+        select(User).where(func.lower(User.email) == user.email.lower())
+    )
     existing_user = result_username.scalars().first()
-    if existing_user:
-        raise HTTPException(status_code=404, detail="Username already exists")
-
-    result_email = db.execute(select(User).where(User.email == user.email))
-
     existing_email = result_email.scalars().first()
-    if existing_email:
-        raise HTTPException(status_code=404, detail="Email already exist")
 
-    new_user = User(username=user.username, email=user.email)
+    if existing_user or existing_email:
+        raise HTTPException(status_code=409, detail="Email or User Name already exist")
+
+    new_user = User(
+        username=user.username,
+        email=user.email.lower(),
+        password_hash=hash_password(user.password),  # hash user password
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -94,13 +119,98 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@router.get("/user_posts/{user_id}", response_model=list[PredictionsResponse])
-async def show_user_predictions(user_id: int, db: Session = Depends(get_db)):
-    result_user = db.execute(select(User).where(User.id == user_id))
+@router.post("/token", response_model=Token)
+def login_for_access_token(
+    form_data=Depends(OAuth2PasswordRequestForm),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """Return Token to user"""
+    result = db.execute(
+        select(User).where(func.lower(User.username) == form_data.username.lower())
+    )
+    user = result.scalars().first()
 
-    existing_user = result_user.scalars().first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expire = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=access_token_expire, settings=settings
+    )
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+    settings=Depends(get_settings),
+):
+    """Get current authenticated user"""
+    user_id = verify_access_token(token, settings)
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError) as err:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from err
+
+    result = db.execute(select(User).where(User.id == user_id_int))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not fund",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+@router.get("/my_posts", response_model=list[PredictionsResponse])
+async def show_user_predictions(
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+    settings: Settings = Depends(get_settings),
+):
+    user_id = verify_access_token(token, settings)  #  str id or None
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError) as err:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from err
+
+    result_user = db.execute(select(User).where(User.id == user_id_int))
+
+    existing_user = result_user.scalars().first()  # user or None
 
     if not existing_user:
+        logger.warning(f"No user with ID {user_id_int} found in DB")
         raise HTTPException(status_code=404, detail=f"No user with ID {user_id}")
 
     predictions = existing_user.spam

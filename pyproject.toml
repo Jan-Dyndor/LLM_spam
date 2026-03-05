@@ -17,8 +17,10 @@ dependencies = [
     "loguru",
     "tenacity",
     "redis",
-    "pydantic_settings",
+    "pydantic-settings",
     "sqlalchemy",
+    "pwdlib[argon2]",
+    "pyjwt",
 ]
 
 [tool.setuptools]
