@@ -22,6 +22,7 @@ dependencies = [
     "pwdlib[argon2]",
     "pyjwt",
     "pydantic[email]",
+    "python-multipart",
 ]
 
 [tool.setuptools]
