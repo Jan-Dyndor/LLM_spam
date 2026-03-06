@@ -21,6 +21,7 @@ dependencies = [
     "sqlalchemy",
     "pwdlib[argon2]",
     "pyjwt",
+    "pydantic[email]",
 ]
 
 [tool.setuptools]
