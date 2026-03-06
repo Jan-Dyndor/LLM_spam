@@ -1,9 +1,21 @@
 import json
-from app.main import app
-import pytest
 from unittest.mock import AsyncMock
-from app.schemas.pydantic_schemas import LLM_Response
+
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import StaticPool, create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.config.settings import get_settings
+from app.db.database import get_db
+from app.db.db_models import Base
+from app.main import app
 from app.routers.v1 import get_reddis
+from app.schemas.pydantic_schemas import LLM_Response
+from app.authentication.auth import oauth2_scheme
+from pydantic import BaseModel, SecretStr
+from pydantic_settings import BaseSettings
 
 
 @pytest.fixture
@@ -111,15 +123,6 @@ def user_input_wrong_too_long() -> str:
     return "A" * 501
 
 
-# Fixtures to test Redis
-@pytest.fixture
-def override_redis():
-    fake_redis = AsyncMock()
-    app.dependency_overrides[get_reddis] = lambda: fake_redis
-    yield fake_redis
-    app.dependency_overrides.clear()
-
-
 @pytest.fixture
 def Model_Response_Happy_REDIS() -> str:
     output_string = """ 
@@ -148,3 +151,76 @@ def Model_Response_Happy_REDIS_Response() -> bytes:
     model_validated = LLM_Response.model_validate(output_string_json)
     model_val_str = model_validated.model_dump_json()
     return model_val_str.encode()
+
+
+# APP DEPENDS fixtures
+
+
+@pytest.fixture
+def redis_fixture():
+    return AsyncMock()
+
+
+@pytest.fixture
+def settings_fixture():
+    class AI_Model(BaseModel):
+        model_name: str = "test_model"
+        temperature: float = -99
+        promp_version: str = "test_prompt"
+
+    class Settings(BaseSettings):
+        secret_key: SecretStr = "test_key" * 9  # type: ignore x9 so I want get InsecureKeyLengthWarning
+        algorythm: str = "HS256"
+        ai_model: AI_Model = AI_Model()
+
+    return Settings()
+
+
+@pytest.fixture()
+def token_fixture(settings_fixture):
+    settings = settings_fixture
+    payload = {"sub": 1, "exp": 100}
+    return jwt.encode(
+        payload, settings.secret_key.get_secret_value(), settings.algorythm
+    )
+
+
+# Tutaj beirze mi z orginalnych settign a nie moich patchowanych !!!! teraz po zmianie powinnop byc ok
+
+
+@pytest.fixture()
+def session_fixture():
+    engine = create_engine(
+        url="sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+
+    Base.metadata.create_all(bind=engine)
+
+    session_test_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    SessionLocalTest = session_test_factory()
+    with SessionLocalTest as sesion_test:
+        yield sesion_test
+
+
+@pytest.fixture()
+def client(session_fixture, token_fixture, redis_fixture, settings_fixture):
+    def get_session_override():
+        return session_fixture
+
+    def token_override():
+        return token_fixture
+
+    def redis_override():
+        return redis_fixture
+
+    def settigns_override():
+        return settings_fixture
+
+    app.dependency_overrides[get_db] = get_session_override
+    app.dependency_overrides[oauth2_scheme] = token_override
+    app.dependency_overrides[get_reddis] = redis_override
+    app.dependency_overrides[get_settings] = settigns_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()

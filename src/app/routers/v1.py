@@ -6,6 +6,14 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.authentication.auth import (
+    create_access_token,
+    hash_password,
+    oauth2_scheme,
+    verify_access_token,
+    verify_password,
+)
+from app.config.settings import Settings, get_settings
 from app.db.database import get_db
 from app.db.db_models import Predictions, User
 from app.logging.logg import logger
@@ -13,20 +21,11 @@ from app.schemas.pydantic_schemas import (
     InputText,
     LLM_Response,
     PredictionsResponse,
+    Token,
     UserCreate,
     UserResponse,
-    Token,
 )
 from app.services.spam_classification import classify_spam
-from app.authentication.auth import (
-    hash_password,
-    verify_password,
-    oauth2_scheme,
-    verify_access_token,
-    create_access_token,
-)
-from app.config.settings import get_settings, Settings
-
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -72,6 +71,7 @@ async def ask_llm(
         await redis.setex(input.text, 300, model_output_json)
 
     if user_id:
+        logger.info("Attempt to save user query to DB")
         result_user_id = db.execute(select(User).where(User.id == user_id))
         user = result_user_id.scalars().first()
         if user:
@@ -87,7 +87,7 @@ async def ask_llm(
             db.add(new_prediction)
             db.commit()
             db.refresh(new_prediction)
-            logger.info(f"Saved user {user_id_int} input to DB")
+            logger.info(f"Saved user {user_id_int} query to DB")
 
     return value
 
