@@ -56,7 +56,7 @@ def verify_access_token(token: str, settings: Settings) -> str | None:
             algorithms=[settings.algorythm],
             options={"require": ["exp", "sub"]},
         )
-    except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+    except jwt.InvalidTokenError, jwt.ExpiredSignatureError:
         logger.info("Invalid or expired token")
         return None
     logger.info("Positive TOKEN verification")

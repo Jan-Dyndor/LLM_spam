@@ -53,7 +53,7 @@ async def ask_llm(
 
     try:
         user_id_int = int(user_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.exception(f"Issue while converting user_id {user_id} to int")
         raise HTTPException(
             status_code=401,
