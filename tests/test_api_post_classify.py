@@ -5,8 +5,6 @@ from sqlalchemy import select
 from app.db.db_models import Predictions, User
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
 
-# NO AUTH TEST - assume OK authorization with JWT (mocked auth)
-
 
 def test_health_happy(client, health_happy_path):
     response = client.get("/health")
@@ -14,20 +12,45 @@ def test_health_happy(client, health_happy_path):
     assert response.json() == health_happy_path
 
 
-@patch("app.routers.v1.verify_access_token")
+# AUTH TETS
+def test_invalid_token(client, user_input, invalid_token_fixture):
+    """Function will test invalid token value - function verify_access_token returns None"""
+
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+    response = client.post("v1/classify", json={"text": user_input}, headers=headers)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or expired token"
+
+
+def test_expired_token(client, expired_token_fixture, user_input):
+    """
+    Function tests expire token
+    """
+    headers = {"Authorization": f"Bearer {expired_token_fixture}"}
+    response = client.post("v1/classify", json={"text": user_input}, headers=headers)
+    assert response.status_code == 401
+
+
+# NO AUTH TEST - assume OK authorization with JWT (mocked auth)
+
+
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_happy_no_auth(
+def test_ask_llm_happy(
     mock_llm,
-    mock_verify_token,
     user_input,
     Model_Response_Happy_JSON_Validated,
     Model_Response_Happy_REDIS,
     redis_fixture,
     client,
     session_fixture,
+    valid_token_fixture,
 ):
     """
-    Function tests happy path of endpoint /classify with correct user in DB, mock authentication and ssaving predictions to DB
+    Function tests the whole endpoint - Auth , DB
+
+    Mocked is API call. and Redis cache
+
     """
     # Add User to DB
     new_user = User(
@@ -37,11 +60,13 @@ def test_ask_llm_happy_no_auth(
     session_fixture.commit()
     session_fixture.refresh(new_user)
 
-    mock_verify_token.return_value = "1"
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
     redis_fixture.get.return_value = None
 
-    response = client.post("/v1/classify", json={"text": user_input})
+    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+
+    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
+
     assert response.status_code == 200
     assert response.json()["label"] == "spam"
     assert response.json()["confidence"] == 0.95
@@ -65,9 +90,21 @@ def test_ask_llm_happy_no_auth(
 
 
 def test_ask_llm_wrong_user_input(
-    user_input_wrong_empty, redis_fixture, client, session_fixture
+    user_input_wrong_empty,
+    invalid_token_fixture,
+    redis_fixture,
+    client,
+    session_fixture,
 ):
-    response = client.post("/v1/classify", json={"text": user_input_wrong_empty})
+    """
+    Function do not test AUTH and DB or REDIS
+    User input validation happens before all of that, tets onl;y requres header since oauth2_scheme is in Depends
+    """
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+
+    response = client.post(
+        "/v1/classify", json={"text": user_input_wrong_empty}, headers=headers
+    )
 
     redis_fixture.get.assert_not_awaited()
     data_obj = session_fixture.execute(select(Predictions))
@@ -78,9 +115,20 @@ def test_ask_llm_wrong_user_input(
 
 
 def test_ask_llm_wrong_user_input_int(
-    user_input_wrong_int, redis_fixture, client, session_fixture
+    user_input_wrong_int,
+    redis_fixture,
+    client,
+    session_fixture,
+    invalid_token_fixture,
 ):
-    response = client.post("/v1/classify", json={"text": user_input_wrong_int})
+    """
+    Function do not test AUTH and DB or REDIS
+    User input validation happens before all of that
+    """
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+    response = client.post(
+        "/v1/classify", json={"text": user_input_wrong_int}, headers=headers
+    )
 
     redis_fixture.get.assert_not_awaited()
     data_obj = session_fixture.execute(select(Predictions))
@@ -90,9 +138,21 @@ def test_ask_llm_wrong_user_input_int(
 
 
 def test_ask_llm_wrong_user_input_too_long(
-    user_input_wrong_too_long, redis_fixture, client, session_fixture
+    user_input_wrong_too_long,
+    redis_fixture,
+    client,
+    session_fixture,
+    invalid_token_fixture,
 ):
-    response = client.post("/v1/classify", json={"text": user_input_wrong_too_long})
+    """
+    Function do not test DB, AUTH, REDIS
+    Only user input
+    """
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+
+    response = client.post(
+        "/v1/classify", json={"text": user_input_wrong_too_long}, headers=headers
+    )
     redis_fixture.get.assert_not_awaited()
     data_obj = session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
@@ -104,14 +164,25 @@ def test_ask_llm_wrong_user_input_too_long(
 @patch("app.routers.v1.verify_access_token")
 @patch("app.routers.v1.classify_spam")
 def test_ask_llm_wrong_llm_response_json(
-    mock_llm, mock_verify_token, user_input, redis_fixture, client, session_fixture
+    mock_llm,
+    mock_verify_token,
+    user_input,
+    redis_fixture,
+    client,
+    session_fixture,
+    invalid_token_fixture,
 ):
-    """Function tests /classify endpoint with API LLM error and mocked auth"""
+    """Function tests /classify endpoint with API LLM error and no DB queries were done
+
+    No AUTH is tested = token verification is mocked
+    """
+
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
     mock_verify_token.return_value = "1"
     mock_llm.side_effect = LLMInvalidJSONError()
     redis_fixture.get.return_value = None
 
-    response = client.post("/v1/classify", json={"text": user_input})
+    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
 
     redis_fixture.setex.assert_not_awaited()
     data_obj = session_fixture.execute(select(Predictions))
@@ -125,15 +196,25 @@ def test_ask_llm_wrong_llm_response_json(
 @patch("app.routers.v1.verify_access_token")
 @patch("app.routers.v1.classify_spam")
 def test_ask_llm_wrong_llm_response_walidation(
-    mock_llm, mock_verify_token, user_input, redis_fixture, client, session_fixture
+    mock_llm,
+    mock_verify_token,
+    user_input,
+    redis_fixture,
+    client,
+    session_fixture,
+    invalid_token_fixture,
 ):
-    """Function tests /classify endpoint with API LLM error nad mocked auth"""
+    """Function tests /classify endpoint with API LLM error and no DB queries were done
+
+    No AUTH is tested = token verification is mocked
+    """
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
 
     mock_verify_token.return_value = "1"
     mock_llm.side_effect = LLMInvalidValidationError()
     redis_fixture.get.return_value = None
 
-    response = client.post("/v1/classify", json={"text": user_input})
+    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
     data_obj = session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
 
@@ -154,8 +235,13 @@ def test_ask_llm_cache_hit(
     Model_Response_Happy_REDIS_Response,
     client,
     session_fixture,
+    invalid_token_fixture,
 ):
-    """Function test /classify endpoint with mocked auth and redis cache hit, saving output to DB"""
+    """Function test /classify endpoint with redis cache hit, saving output to DB assuming User id = 1 alredy in DB
+
+    No real AUTH is done
+    """
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
     new_user = User(
         id=1, username="test_user", email="test@email.com", password_hash="test"
     )
@@ -167,7 +253,7 @@ def test_ask_llm_cache_hit(
     mock_verify_token.return_value = "1"
     redis_fixture.get.return_value = Model_Response_Happy_REDIS_Response
 
-    response = client.post("/v1/classify", json={"text": user_input})
+    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
 
     data_obj = session_fixture.execute(
         select(Predictions).where(Predictions.user_id == 1)
@@ -198,8 +284,10 @@ def test_ask_llm_no_user_in_db(
     redis_fixture,
     Model_Response_Happy_JSON_Validated,
     Model_Response_Happy_REDIS,
+    invalid_token_fixture,
 ):
-    """Function tests /classify endpoint with mocked auth and somehow now User who invoked endpoint in DB = no saving model output"""
+    """Function tests /classify endpoint in scenerio that somehow  User who invoked endpoint is not present in DB = no saving model output"""
+    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
     users_obj = session_fixture.execute(select(User))
     users = users_obj.scalars().all()
     assert users == []
@@ -208,7 +296,7 @@ def test_ask_llm_no_user_in_db(
     redis_fixture.get.return_value = None
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
 
-    response = client.post("/v1/classify", json={"text": user_input})
+    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
 
     assert response.status_code == 200
     assert response.json()["label"] == "spam"
@@ -219,14 +307,3 @@ def test_ask_llm_no_user_in_db(
     predictions_obj = session_fixture.execute(select(Predictions))
     preds = predictions_obj.scalars().all()
     assert preds == []
-
-
-@patch("app.routers.v1.verify_access_token")
-def test_invalid_token(mock_verify_token, client, user_input):
-    """Function will test invalid token value - function verify_access_token returns None"""
-
-    mock_verify_token.return_value = None
-    response = client.post("v1/classify", json={"text": user_input})
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid or expired token"
