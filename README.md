@@ -145,3 +145,4 @@ Responce:
 output: {
 "Status": "OK"
 }
+So user have to be logged to be able to use /classify endpint and his/her respnse from AI model is saved in DB later to be viewd
