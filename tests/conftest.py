@@ -173,6 +173,15 @@ def test_user_invalid():
     }
 
 
+@pytest.fixture
+def test_useer_request_form_valid():
+
+    return {
+        "username": "test_username",
+        "password": "test_password",
+    }
+
+
 # APP DEPENDS fixtures
 
 
@@ -192,6 +201,7 @@ def settings_fixture():
         secret_key: SecretStr = "test_keys" * 5  # type: ignore x5 so I want get InsecureKeyLengthWarning
         # key should be long enought
         algorythm: str = "HS256"
+        access_token_expire_minutes: int = 2
         ai_model: AI_Model = AI_Model()
 
     return Settings()
@@ -249,6 +259,7 @@ def client(session_fixture, redis_fixture, settings_fixture):
     app.dependency_overrides[get_db] = get_session_override
     app.dependency_overrides[get_reddis] = redis_override
     app.dependency_overrides[get_settings] = settigns_override
+
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()

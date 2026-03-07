@@ -34,7 +34,6 @@ def test_create_user_invalid_user(client, test_user_invalid):
 
 def test_client_username_exists(client, session_fixture, test_user_valid):
     new_user = User(
-        id=1,
         username="test_username".lower(),
         email="new_test_email@email.com".lower(),
         password_hash="new_test_password_12345678",
@@ -51,12 +50,12 @@ def test_client_username_exists(client, session_fixture, test_user_valid):
     assert response.status_code == 409
     assert response.json()["detail"] == "Email or User Name already exist"
     assert len(users) == 1
+    assert users[0].id == 1
 
 
 def test_create_user_email_exists(client, test_user_valid, session_fixture):
 
     new_user = User(
-        id=1,
         username="new_test_username".lower(),
         email="test_user@email.com".lower(),
         password_hash="new_test_password_12345678",
@@ -73,3 +72,4 @@ def test_create_user_email_exists(client, test_user_valid, session_fixture):
     assert response.status_code == 409
     assert response.json()["detail"] == "Email or User Name already exist"
     assert len(users) == 1
+    assert users[0].id == 1
