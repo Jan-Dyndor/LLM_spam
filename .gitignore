@@ -11,3 +11,5 @@ build/
 venv/
 .vscode
 dump.rdb
+data
+*.db
