@@ -163,6 +163,16 @@ def test_user_valid():
     }
 
 
+@pytest.fixture()
+def test_user_invalid():
+
+    return {
+        "username": "test_username",
+        "email": "test_user@email.com",
+        "password": "",
+    }
+
+
 # APP DEPENDS fixtures
 
 
