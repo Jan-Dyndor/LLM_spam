@@ -176,19 +176,19 @@ def get_current_user(
     if not user:
         raise HTTPException(
             status_code=404,
-            detail="User not fund",
+            detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
 
 
-@router.get("/my_posts", response_model=list[PredictionsResponse])
+@router.get("/users/me/predictions", response_model=list[PredictionsResponse])
 async def show_user_predictions(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
     settings: Settings = Depends(get_settings),
 ):
-    user_id = verify_access_token(token, settings)  #  str id or None
+    user_id = verify_access_token(token, settings)
     if not user_id:
         raise HTTPException(
             status_code=401,
@@ -211,7 +211,9 @@ async def show_user_predictions(
 
     if not existing_user:
         logger.warning(f"No user with ID {user_id_int} found in DB")
-        raise HTTPException(status_code=404, detail=f"No user with ID {user_id}")
+        raise HTTPException(
+            status_code=404, detail=f"No user with ID {user_id} found in DB"
+        )
 
     predictions = existing_user.spam
     return predictions
