@@ -307,3 +307,13 @@ def test_ask_llm_no_user_in_db(
     predictions_obj = session_fixture.execute(select(Predictions))
     preds = predictions_obj.scalars().all()
     assert preds == []
+
+
+def test_ask_llm_wrong_token_int(client, invalid_token_int, user_input):
+
+    headers = {"Authorization": f"Bearer {invalid_token_int}"}
+
+    response = client.post("v1/classify", headers=headers, json={"text": user_input})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or expired token"

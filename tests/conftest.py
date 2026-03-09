@@ -216,6 +216,16 @@ def valid_token_fixture(settings_fixture):
     )
 
 
+@pytest.fixture
+def invalid_token_int(settings_fixture):
+    settings = settings_fixture
+    payload = {"sub": "INVALID_INT", "exp": datetime.now(UTC) + timedelta(minutes=5)}
+
+    return jwt.encode(
+        payload, settings.secret_key.get_secret_value(), settings.algorythm
+    )
+
+
 @pytest.fixture()
 def invalid_token_fixture():
     return "invalid_token"
