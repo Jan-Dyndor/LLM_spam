@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from redis.asyncio import Redis
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.authentication.auth import (
     create_access_token,
@@ -38,7 +39,7 @@ def get_reddis(request: Request) -> Redis:
 async def ask_llm(
     input: InputText,
     redis: Redis = Depends(get_reddis),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     token: str = Depends(oauth2_scheme),
     settings: Settings = Depends(get_settings),
 ):
@@ -72,7 +73,7 @@ async def ask_llm(
 
     if user_id:
         logger.info("Attempt to save user query to DB")
-        result_user_id = db.execute(select(User).where(User.id == user_id))
+        result_user_id = await db.execute(select(User).where(User.id == user_id))
         user = result_user_id.scalars().first()
         if user:
             new_prediction = Predictions(
@@ -85,20 +86,20 @@ async def ask_llm(
                 prompt_version=settings.ai_model.promp_version,
             )
             db.add(new_prediction)
-            db.commit()
-            db.refresh(new_prediction)
+            await db.commit()
+            await db.refresh(new_prediction)
             logger.info(f"Saved user {user_id_int} query to DB")
 
     return value
 
 
 @router.post("/create_user", response_model=UserResponse)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
-    result_username = db.execute(
+    result_username = await db.execute(
         select(User).where(func.lower(User.username) == user.username.lower())
     )
-    result_email = db.execute(
+    result_email = await db.execute(
         select(User).where(func.lower(User.email) == user.email.lower())
     )
     existing_user = result_username.scalars().first()
@@ -113,20 +114,20 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
         password_hash=hash_password(user.password),  # hash user password
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
     return new_user
 
 
 @router.post("/token", response_model=Token)
-def login_for_access_token(
+async def login_for_access_token(
     form_data=Depends(OAuth2PasswordRequestForm),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
     """Return Token to user"""
-    result = db.execute(
+    result = await db.execute(
         select(User).where(func.lower(User.username) == form_data.username.lower())
     )
     user = result.scalars().first()
@@ -146,9 +147,9 @@ def login_for_access_token(
 
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user(
+async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     settings=Depends(get_settings),
 ):
     """Get current authenticated user"""
@@ -170,7 +171,7 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from err
 
-    result = db.execute(select(User).where(User.id == user_id_int))
+    result = await db.execute(select(User).where(User.id == user_id_int))
     user = result.scalars().first()
 
     if not user:
@@ -184,7 +185,7 @@ def get_current_user(
 
 @router.get("/users/me/predictions", response_model=list[PredictionsResponse])
 async def show_user_predictions(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     token: str = Depends(oauth2_scheme),
     settings: Settings = Depends(get_settings),
 ):
@@ -205,7 +206,9 @@ async def show_user_predictions(
             headers={"WWW-Authenticate": "Bearer"},
         ) from err
 
-    result_user = db.execute(select(User).where(User.id == user_id_int))
+    result_user = await db.execute(
+        select(User).options(selectinload(User.spam)).where(User.id == user_id_int)
+    )
 
     existing_user = result_user.scalars().first()  # user or None
 

@@ -23,6 +23,8 @@ dependencies = [
     "pyjwt",
     "pydantic[email]",
     "python-multipart",
+    "aiosqlite",
+    "greenlet",
 ]
 
 [tool.setuptools]
