@@ -9,6 +9,7 @@ from app.services.spam_classification import classify_spam
 
 
 @pytest.mark.anyio
+# # Patch Tenacity wait in tests to avoid real sleep delays
 # @patch("tenacity.nap.time.sleep") There are issues with this solution in async so I found this     with mock.patch.object(classify_spam.retry, "wait", wait_fixed(0)):
 @patch("app.services.spam_classification.generate_llm_response")
 async def test_classify_happy(
