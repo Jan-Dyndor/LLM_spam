@@ -27,7 +27,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 
-    get_client()  # Load Client = Fail Fast
+    google_ai_client = (
+        get_client()
+    )  # Load Google AI API Client = Fail Fast, store conenctions
     app.state.redis = Redis(
         host=settings.redis.host, port=settings.redis.port, db=settings.redis.db
     )
@@ -45,6 +47,8 @@ async def lifespan(app: FastAPI):
     # Redis
     await app.state.redis.flushdb()  # After each aplication run clear Redis DB
     await app.state.redis.aclose()  # close redis DB
+
+    await google_ai_client.aclose()
 
 
 app = FastAPI(lifespan=lifespan)

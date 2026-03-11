@@ -13,10 +13,10 @@ from app.logging.logg import logger
 def get_client():
     settings: Settings = get_settings()
     logger.info("Created API client")
-    return genai.Client(api_key=settings.gemini_api_key.get_secret_value())
+    return genai.Client(api_key=settings.gemini_api_key.get_secret_value()).aio
 
 
-def generate_llm_response(text_to_classify: str, prompt: str):
+async def generate_llm_response(text_to_classify: str, prompt: str):
     settings = get_settings()
     start_time = time.perf_counter()
     logger.info("Send request to Google AI API")
@@ -38,7 +38,7 @@ def generate_llm_response(text_to_classify: str, prompt: str):
     )
 
     try:
-        response = client.models.generate_content(
+        response = await client.models.generate_content(
             model=settings.ai_model.model_name,
             contents=contents,
             config=generate_content_config,

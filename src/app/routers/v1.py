@@ -67,7 +67,7 @@ async def ask_llm(
         logger.info("CACHE HIT")
         value = LLM_Response.model_validate_json(value)
     else:
-        value = classify_spam(input.text)
+        value = await classify_spam(input.text)
         model_output_json = value.model_dump_json()
         await redis.setex(input.text, 300, model_output_json)
 
