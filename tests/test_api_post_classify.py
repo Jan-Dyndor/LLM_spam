@@ -1,42 +1,51 @@
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy import select
 
 from app.db.db_models import Predictions, User
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
 
 
-def test_health_happy(client, health_happy_path):
-    response = client.get("/health")
+@pytest.mark.anyio
+async def test_health_happy(client, health_happy_path):
+    response = await client.get("/health")
     assert response.status_code == 200
     assert response.json() == health_happy_path
 
 
 # AUTH TETS
-def test_invalid_token(client, user_input, invalid_token_fixture):
+@pytest.mark.anyio
+async def test_invalid_token(client, user_input, invalid_token_fixture):
     """Function will test invalid token value - function verify_access_token returns None"""
 
     headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
-    response = client.post("v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "v1/classify", json={"text": user_input}, headers=headers
+    )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid or expired token"
 
 
-def test_expired_token(client, expired_token_fixture, user_input):
+@pytest.mark.anyio
+async def test_expired_token(client, expired_token_fixture, user_input):
     """
     Function tests expire token
     """
     headers = {"Authorization": f"Bearer {expired_token_fixture}"}
-    response = client.post("v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "v1/classify", json={"text": user_input}, headers=headers
+    )
     assert response.status_code == 401
 
 
 # NO AUTH TEST - assume OK authorization with JWT (mocked auth)
 
 
+@pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_happy(
+async def test_ask_llm_happy(
     mock_llm,
     user_input,
     Model_Response_Happy_JSON_Validated,
@@ -57,15 +66,17 @@ def test_ask_llm_happy(
         id=1, username="test_user", email="test@email.com", password_hash="test"
     )
     session_fixture.add(new_user)
-    session_fixture.commit()
-    session_fixture.refresh(new_user)
+    await session_fixture.commit()
+    await session_fixture.refresh(new_user)
 
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
     redis_fixture.get.return_value = None
 
     headers = {"Authorization": f"Bearer {valid_token_fixture}"}
 
-    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "/v1/classify", json={"text": user_input}, headers=headers
+    )
 
     assert response.status_code == 200
     assert response.json()["label"] == "spam"
@@ -78,10 +89,10 @@ def test_ask_llm_happy(
     redis_fixture.setex.assert_awaited_once_with(
         user_input, 300, Model_Response_Happy_REDIS
     )
-    endpoint_db_result_object = session_fixture.execute(
+    endpoint_db_result_object = await session_fixture.execute(
         select(Predictions).where(Predictions.user_id == 1)
     )
-    all_data_obj = session_fixture.execute(select(Predictions))
+    all_data_obj = await session_fixture.execute(select(Predictions))
     all_data = all_data_obj.scalars().all()
     endpoint_bd_result = endpoint_db_result_object.scalars().first()
     assert endpoint_bd_result is not None
@@ -89,7 +100,8 @@ def test_ask_llm_happy(
     assert len(all_data) == 1
 
 
-def test_ask_llm_wrong_user_input(
+@pytest.mark.anyio
+async def test_ask_llm_wrong_user_input(
     user_input_wrong_empty,
     invalid_token_fixture,
     redis_fixture,
@@ -102,19 +114,20 @@ def test_ask_llm_wrong_user_input(
     """
     headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
 
-    response = client.post(
+    response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_empty}, headers=headers
     )
 
     redis_fixture.get.assert_not_awaited()
-    data_obj = session_fixture.execute(select(Predictions))
+    data_obj = await session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
 
     assert response.status_code == 422
     assert data == []
 
 
-def test_ask_llm_wrong_user_input_int(
+@pytest.mark.anyio
+async def test_ask_llm_wrong_user_input_int(
     user_input_wrong_int,
     redis_fixture,
     client,
@@ -126,18 +139,19 @@ def test_ask_llm_wrong_user_input_int(
     User input validation happens before all of that
     """
     headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
-    response = client.post(
+    response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_int}, headers=headers
     )
 
     redis_fixture.get.assert_not_awaited()
-    data_obj = session_fixture.execute(select(Predictions))
+    data_obj = await session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
     assert data == []
     assert response.status_code == 422
 
 
-def test_ask_llm_wrong_user_input_too_long(
+@pytest.mark.anyio
+async def test_ask_llm_wrong_user_input_too_long(
     user_input_wrong_too_long,
     redis_fixture,
     client,
@@ -150,42 +164,40 @@ def test_ask_llm_wrong_user_input_too_long(
     """
     headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
 
-    response = client.post(
+    response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_too_long}, headers=headers
     )
     redis_fixture.get.assert_not_awaited()
-    data_obj = session_fixture.execute(select(Predictions))
+    data_obj = await session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
     assert response.status_code == 422
 
     assert data == []
 
 
-@patch("app.routers.v1.verify_access_token")
+@pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_wrong_llm_response_json(
+async def test_ask_llm_wrong_llm_response_json(
     mock_llm,
-    mock_verify_token,
     user_input,
     redis_fixture,
     client,
     session_fixture,
-    invalid_token_fixture,
+    valid_token_fixture,
 ):
-    """Function tests /classify endpoint with API LLM error and no DB queries were done
+    """Function tests /classify endpoint with API LLM error and no DB queries were done"""
 
-    No AUTH is tested = token verification is mocked
-    """
-
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
-    mock_verify_token.return_value = "1"
+    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    # mock_verify_token.return_value = "1"
     mock_llm.side_effect = LLMInvalidJSONError()
     redis_fixture.get.return_value = None
 
-    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "/v1/classify", json={"text": user_input}, headers=headers
+    )
 
     redis_fixture.setex.assert_not_awaited()
-    data_obj = session_fixture.execute(select(Predictions))
+    data_obj = await session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
 
     assert response.status_code == 502
@@ -193,29 +205,26 @@ def test_ask_llm_wrong_llm_response_json(
     assert data == []
 
 
-@patch("app.routers.v1.verify_access_token")
+@pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_wrong_llm_response_walidation(
+async def test_ask_llm_wrong_llm_response_walidation(
     mock_llm,
-    mock_verify_token,
     user_input,
     redis_fixture,
     client,
     session_fixture,
-    invalid_token_fixture,
+    valid_token_fixture,
 ):
-    """Function tests /classify endpoint with API LLM error and no DB queries were done
+    """Function tests /classify endpoint with API LLM error and no DB queries were done"""
+    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
 
-    No AUTH is tested = token verification is mocked
-    """
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
-
-    mock_verify_token.return_value = "1"
     mock_llm.side_effect = LLMInvalidValidationError()
     redis_fixture.get.return_value = None
 
-    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
-    data_obj = session_fixture.execute(select(Predictions))
+    response = await client.post(
+        "/v1/classify", json={"text": user_input}, headers=headers
+    )
+    data_obj = await session_fixture.execute(select(Predictions))
     data = data_obj.scalars().all()
 
     redis_fixture.setex.assert_not_awaited()
@@ -225,37 +234,34 @@ def test_ask_llm_wrong_llm_response_walidation(
 
 
 # # CACHE HIT TESTS
-@patch("app.routers.v1.verify_access_token")
+@pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_cache_hit(
+async def test_ask_llm_cache_hit(
     mock_llm,
-    mock_verify_token,
     user_input,
     redis_fixture,
     Model_Response_Happy_REDIS_Response,
     client,
     session_fixture,
-    invalid_token_fixture,
+    valid_token_fixture,
 ):
-    """Function test /classify endpoint with redis cache hit, saving output to DB assuming User id = 1 alredy in DB
-
-    No real AUTH is done
-    """
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+    """Function test /classify endpoint with redis cache hit, saving output to DB assuming User id = 1 alredy in DB"""
+    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
     new_user = User(
         id=1, username="test_user", email="test@email.com", password_hash="test"
     )
 
     session_fixture.add(new_user)
-    session_fixture.commit()
-    session_fixture.refresh(new_user)
+    await session_fixture.commit()
+    await session_fixture.refresh(new_user)
 
-    mock_verify_token.return_value = "1"
     redis_fixture.get.return_value = Model_Response_Happy_REDIS_Response
 
-    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "/v1/classify", json={"text": user_input}, headers=headers
+    )
 
-    data_obj = session_fixture.execute(
+    data_obj = await session_fixture.execute(
         select(Predictions).where(Predictions.user_id == 1)
     )
     data = data_obj.scalars().first()
@@ -273,30 +279,31 @@ def test_ask_llm_cache_hit(
     assert data.model_name == "test_model"
 
 
-@patch("app.routers.v1.verify_access_token")
+@pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
-def test_ask_llm_no_user_in_db(
+async def test_ask_llm_no_user_in_db(
     mock_llm,
-    mock_verify_token,
     user_input,
     client,
     session_fixture,
     redis_fixture,
     Model_Response_Happy_JSON_Validated,
     Model_Response_Happy_REDIS,
-    invalid_token_fixture,
+    valid_token_fixture,
 ):
     """Function tests /classify endpoint in scenerio that somehow  User who invoked endpoint is not present in DB = no saving model output"""
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
-    users_obj = session_fixture.execute(select(User))
+
+    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    users_obj = await session_fixture.execute(select(User))
     users = users_obj.scalars().all()
     assert users == []
 
-    mock_verify_token.return_value = "1"
     redis_fixture.get.return_value = None
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
 
-    response = client.post("/v1/classify", json={"text": user_input}, headers=headers)
+    response = await client.post(
+        "/v1/classify", json={"text": user_input}, headers=headers
+    )
 
     assert response.status_code == 200
     assert response.json()["label"] == "spam"
@@ -304,16 +311,19 @@ def test_ask_llm_no_user_in_db(
         user_input, 300, Model_Response_Happy_REDIS
     )
 
-    predictions_obj = session_fixture.execute(select(Predictions))
+    predictions_obj = await session_fixture.execute(select(Predictions))
     preds = predictions_obj.scalars().all()
     assert preds == []
 
 
-def test_ask_llm_wrong_token_int(client, invalid_token_int, user_input):
+@pytest.mark.anyio
+async def test_ask_llm_wrong_token_int(client, invalid_token_int, user_input):
 
     headers = {"Authorization": f"Bearer {invalid_token_int}"}
 
-    response = client.post("v1/classify", headers=headers, json={"text": user_input})
+    response = await client.post(
+        "v1/classify", headers=headers, json={"text": user_input}
+    )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid or expired token"

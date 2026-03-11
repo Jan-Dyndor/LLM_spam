@@ -89,6 +89,8 @@ async def ask_llm(
             await db.commit()
             await db.refresh(new_prediction)
             logger.info(f"Saved user {user_id_int} query to DB")
+    else:
+        logger.info(f"No user {user_id_int} in DB - prediction did not save")
 
     return value
 
