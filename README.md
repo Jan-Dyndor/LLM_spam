@@ -146,3 +146,6 @@ output: {
 "Status": "OK"
 }
 So user have to be logged to be able to use /classify endpint and his/her respnse from AI model is saved in DB later to be viewd
+
+- changed DB from sync to async , changed endpoints to asycn , chenkged Google genai client to async client andd added to lifespan as cache so client is reused at each API connection
+- rewriteded all tests to async

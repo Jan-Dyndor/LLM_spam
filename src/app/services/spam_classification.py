@@ -25,9 +25,9 @@ import logging
     before_sleep=before_sleep_log(logger=logger, log_level=logging.WARNING),
     reraise=True,
 )
-def classify_spam(text: str) -> LLM_Response:
+async def classify_spam(text: str) -> LLM_Response:
 
-    raw_output = generate_llm_response(text, PROMPT)
+    raw_output = await generate_llm_response(text, PROMPT)
 
     logger.info("Validation of AI output")
     try:
