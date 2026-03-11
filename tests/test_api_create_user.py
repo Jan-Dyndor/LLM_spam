@@ -1,16 +1,18 @@
+import pytest
 from sqlalchemy import select
 
 from app.db.db_models import User
 
 
-def test_create_user_happy(client, session_fixture, test_user_valid):
+@pytest.mark.anyio
+async def test_create_user_happy(client, session_fixture, test_user_valid):
     """
     In this scenario no users are in DB
     """
-    response = client.post("v1/create_user", json=test_user_valid)
+    response = await client.post("v1/create_user", json=test_user_valid)
 
-    user_obj = session_fixture.execute(select(User))
-    user_objs = session_fixture.execute(select(User))
+    user_obj = await session_fixture.execute(select(User))
+    user_objs = await session_fixture.execute(select(User))
 
     user = user_obj.scalars().first()
     usesrs = user_objs.scalars().all()
@@ -26,25 +28,27 @@ def test_create_user_happy(client, session_fixture, test_user_valid):
     assert response.json()["email"] == "test_user@email.com"
 
 
-def test_create_user_invalid_user(client, test_user_invalid):
-    response = client.post("v1/create_user", json=test_user_invalid)
+@pytest.mark.anyio
+async def test_create_user_invalid_user(client, test_user_invalid):
+    response = await client.post("v1/create_user", json=test_user_invalid)
 
     assert response.status_code == 422
 
 
-def test_client_username_exists(client, session_fixture, test_user_valid):
+@pytest.mark.anyio
+async def test_client_username_exists(client, session_fixture, test_user_valid):
     new_user = User(
         username="test_username".lower(),
         email="new_test_email@email.com".lower(),
         password_hash="new_test_password_12345678",
     )
     session_fixture.add(new_user)
-    session_fixture.commit()
-    session_fixture.refresh(new_user)
+    await session_fixture.commit()
+    await session_fixture.refresh(new_user)
 
-    response = client.post("v1/create_user", json=test_user_valid)
+    response = await client.post("v1/create_user", json=test_user_valid)
 
-    users_obj = session_fixture.execute(select(User))
+    users_obj = await session_fixture.execute(select(User))
     users = users_obj.scalars().all()
 
     assert response.status_code == 409
@@ -53,7 +57,8 @@ def test_client_username_exists(client, session_fixture, test_user_valid):
     assert users[0].id == 1
 
 
-def test_create_user_email_exists(client, test_user_valid, session_fixture):
+@pytest.mark.anyio
+async def test_create_user_email_exists(client, test_user_valid, session_fixture):
 
     new_user = User(
         username="new_test_username".lower(),
@@ -61,12 +66,12 @@ def test_create_user_email_exists(client, test_user_valid, session_fixture):
         password_hash="new_test_password_12345678",
     )
     session_fixture.add(new_user)
-    session_fixture.commit()
-    session_fixture.refresh(new_user)
+    await session_fixture.commit()
+    await session_fixture.refresh(new_user)
 
-    response = client.post("v1/create_user", json=test_user_valid)
+    response = await client.post("v1/create_user", json=test_user_valid)
 
-    users_obj = session_fixture.execute(select(User))
+    users_obj = await session_fixture.execute(select(User))
     users = users_obj.scalars().all()
 
     assert response.status_code == 409

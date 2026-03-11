@@ -24,7 +24,8 @@ async def lifespan(app: FastAPI):
     settings = get_settings()  # Load ENV first = Fail Fast
 
     # create Database
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
     get_client()  # Load Client = Fail Fast
     app.state.redis = Redis(
@@ -39,6 +40,9 @@ async def lifespan(app: FastAPI):
 
     yield
     #  SHUTDOWN of application
+    await engine.dispose()  # shutdown async DB
+
+    # Redis
     await app.state.redis.flushdb()  # After each aplication run clear Redis DB
     await app.state.redis.aclose()  # close redis DB
 
@@ -48,9 +52,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(v1_router)
 
 
-@app.exception_handler(
-    AppExceptions,
-)
+@app.exception_handler(AppExceptions)
 async def app_exception_handler(request: Request, exception: AppExceptions):
     return JSONResponse(
         status_code=exception.status_code, content={"message": exception.message}

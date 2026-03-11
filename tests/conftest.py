@@ -4,11 +4,10 @@ from unittest.mock import AsyncMock
 
 import jwt
 import pytest
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings
-from sqlalchemy import StaticPool, create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config.settings import get_settings
 from app.db.database import get_db
@@ -241,24 +240,28 @@ def expired_token_fixture(settings_fixture):
 
 
 @pytest.fixture()
-def session_fixture():
-    engine = create_engine(
-        url="sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+async def session_fixture():
+    engine = create_async_engine(
+        url="sqlite+aiosqlite://", connect_args={"check_same_thread": False}
     )
 
-    Base.metadata.create_all(bind=engine)
+    AsyncSessionLocalTest = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
-    session_test_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
-    SessionLocalTest = session_test_factory()
-    with SessionLocalTest as sesion_test:
-        yield sesion_test
+    async with AsyncSessionLocalTest() as session_test:
+        yield session_test
+
+    await engine.dispose()
 
 
 @pytest.fixture()
-def client(session_fixture, redis_fixture, settings_fixture):
+async def client(session_fixture, redis_fixture, settings_fixture):
     def get_session_override():
-        return session_fixture
+        yield session_fixture
 
     def redis_override():
         return redis_fixture
@@ -270,6 +273,9 @@ def client(session_fixture, redis_fixture, settings_fixture):
     app.dependency_overrides[get_reddis] = redis_override
     app.dependency_overrides[get_settings] = settigns_override
 
-    client = TestClient(app)
-    yield client
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
     app.dependency_overrides.clear()
