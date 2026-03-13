@@ -39,7 +39,8 @@ async def generate_llm_response(text_to_classify: str, prompt: str):
 
     try:
         response = await client.models.generate_content(
-            model=settings.ai_model.model_name,
+            # model=settings.ai_model.model_name,
+            model="gemini-2.5-flash",
             contents=contents,
             config=generate_content_config,
         )

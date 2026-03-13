@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
@@ -17,11 +17,17 @@ from app.authentication.auth import (
 from app.config.settings import Settings, get_settings
 from app.db.database import get_db
 from app.db.db_models import Predictions, User
+from app.evaluation.evaluate_model import eval_model
 from app.logging.logg import logger
 from app.schemas.pydantic_schemas import (
+    CurrentModelMetrics,
+    Final,
     InputText,
     LLM_Response,
+    ModelMetricsALL,
+    ModelResponseGoldenALL,
     PredictionsResponse,
+    PreviousModelMetrics,
     Token,
     UserCreate,
     UserResponse,
@@ -222,3 +228,66 @@ async def show_user_predictions(
 
     predictions = existing_user.spam
     return predictions
+
+
+@router.post("/test_model_on_golden_data", response_model=Final)
+async def test_model(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    user_id = verify_access_token(token, settings)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    accuracy, f1, recall, precision, data_to_send_back = await eval_model()
+
+    current = {
+        "accuracy": 0.2,
+        "f1": 0.223,
+        "recall": 123,
+        "precision": 3,
+        "date": datetime.now(UTC),
+    }
+
+    previous_model_stats = [
+        {
+            "accuracy": 0.2,
+            "f1": 0.223,
+            "recall": 123,
+            "precision": 3,
+            "date": datetime.now(UTC),
+        },
+        {
+            "accuracy": 0.2,
+            "f1": 0.223,
+            "recall": 123,
+            "precision": 3,
+            "date": datetime.now(UTC),
+        },
+    ]
+
+    current = CurrentModelMetrics(
+        accuracy=accuracy,
+        f1=f1,
+        recall=recall,
+        precision=precision,
+        date=datetime.now(UTC),
+    )
+
+    previus_model_pydantic = [
+        CurrentModelMetrics(**model) for model in previous_model_stats
+    ]
+
+    previous = PreviousModelMetrics(previous_metrics=previus_model_pydantic)
+
+    all_metrics = ModelMetricsALL(current_metris=current, previous_metrics=previous)
+    all_resp = ModelResponseGoldenALL(all_resp=data_to_send_back)
+
+    final_data = Final(metrics=all_metrics, responses=all_resp)
+    return final_data

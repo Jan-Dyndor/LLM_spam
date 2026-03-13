@@ -46,3 +46,43 @@ class PredictionsResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+# Model metrics
+class CurrentModelMetrics(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    accuracy: float
+    f1: float
+    recall: float
+    precision: float
+    date: datetime
+
+
+class PreviousModelMetrics(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    previous_metrics: list[CurrentModelMetrics]
+
+
+class ModelMetricsALL(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    current_metris: CurrentModelMetrics
+    previous_metrics: PreviousModelMetrics
+
+
+class ModelResponseGolden(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    model_label: str
+    confidence: float
+    reason: str
+    true_label: str
+
+
+class ModelResponseGoldenALL(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    all_resp: list[ModelResponseGolden]
+
+
+class Final(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    metrics: ModelMetricsALL
+    responses: ModelResponseGoldenALL
