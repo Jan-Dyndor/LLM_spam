@@ -51,38 +51,32 @@ class Token(BaseModel):
 # Model metrics
 class CurrentModelMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    id: int | None = None
     accuracy: float
+    model_name: str
     f1: float
     recall: float
     precision: float
-    date: datetime
-
-
-class PreviousModelMetrics(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    previous_metrics: list[CurrentModelMetrics]
+    date: datetime | None = None
 
 
 class ModelMetricsALL(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    current_metris: CurrentModelMetrics
-    previous_metrics: PreviousModelMetrics
+    current_metrics: CurrentModelMetrics
+    previous_metrics: list[CurrentModelMetrics] | None
 
 
 class ModelResponseGolden(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    metric_id: int | None = None
     model_label: str
     confidence: float
     reason: str
     true_label: str
-
-
-class ModelResponseGoldenALL(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    all_resp: list[ModelResponseGolden]
+    text: str
 
 
 class Final(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     metrics: ModelMetricsALL
-    responses: ModelResponseGoldenALL
+    responses: list[ModelResponseGolden]

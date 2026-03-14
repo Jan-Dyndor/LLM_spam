@@ -149,3 +149,9 @@ So user have to be logged to be able to use /classify endpint and his/her respns
 
 - changed DB from sync to async , changed endpoints to asycn , chenkged Google genai client to async client andd added to lifespan as cache so client is reused at each API connection
 - rewriteded all tests to async
+
+- added new tables i DB gold_responses and metrics. Table metrics will hold data like accurac, recall, pecision, f1 score model nanme and date - those metrics are calcuated based on the model results from Golden Data set. Table gold_responsec contains fields like metric_id ( its ofregin key to table metrics , since we can send few examples to test model responses and we calcualte metrics to theose responces as a whoel we have an opstion to connect mterics reesults to specific data that model worked on), model_label (spam / ham),confidence , reason, true_lable from golden data set ane text based on. what model decides.
+
+Also I added endpoint to send godlen_data to Google AI model and calcuatle fresh metrics. This endpoint saves those metrics and output of mdoel to above tables and retrives the prvious metricvs and results of mdoel work and sends it back to user
+
+- GOLDEN data is only 2 examples beacuse rare limiting in google AI API high ( 20 RPD and 10 RPM). So ot save some API use one 2 examples - it is just to demonstrate thats important no monitor model performance
