@@ -155,3 +155,5 @@ So user have to be logged to be able to use /classify endpint and his/her respns
 Also I added endpoint to send godlen_data to Google AI model and calcuatle fresh metrics. This endpoint saves those metrics and output of mdoel to above tables and retrives the prvious metricvs and results of mdoel work and sends it back to user
 
 - GOLDEN data is only 2 examples beacuse rare limiting in google AI API high ( 20 RPD and 10 RPM). So ot save some API use one 2 examples - it is just to demonstrate thats important no monitor model performance
+
+- re-write this to 2 endpoints one will serve all mertics and prediciosn secodn will obtain fresh predictions and calcuate metrics by sendig api. all to LLM
