@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from typing import Literal
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class InputText(BaseModel):
@@ -48,27 +49,23 @@ class Token(BaseModel):
     token_type: str
 
 
-# Model metrics
-class CurrentModelMetrics(BaseModel):
+class ValidateModelMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int | None = None
     accuracy: float
     model_name: str
     f1: float
     recall: float
     precision: float
-    date: datetime | None = None
 
 
-class ModelMetricsALL(BaseModel):
+class CurrentModelMetrics(ValidateModelMetrics):
     model_config = ConfigDict(from_attributes=True)
-    current_metrics: CurrentModelMetrics
-    previous_metrics: list[CurrentModelMetrics] | None
+    id: int
+    date: datetime
 
 
-class ModelResponseGolden(BaseModel):
+class ValidateModelResponseGolden(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    metric_id: int | None = None
     model_label: str
     confidence: float
     reason: str
@@ -76,7 +73,24 @@ class ModelResponseGolden(BaseModel):
     text: str
 
 
-class Final(BaseModel):
+class ModelResponseGolden(ValidateModelResponseGolden):
     model_config = ConfigDict(from_attributes=True)
-    metrics: ModelMetricsALL
-    responses: list[ModelResponseGolden]
+    metric_id: int | None = None
+
+
+class ShowEvaluation(BaseModel):
+    metrics: CurrentModelMetrics
+    model_responses: list[ModelResponseGolden]
+
+
+class EvaluationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    accuracy: float
+    model_name: str
+    f1: float
+    recall: float
+    precision: float
+    date: datetime
+    model_responses: list[ModelResponseGolden]

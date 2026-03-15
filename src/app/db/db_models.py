@@ -48,6 +48,9 @@ class Metrics(Base):
     date: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+    model_responses: Mapped[list[GoldenResponses]] = relationship(
+        back_populates="metric"
+    )
 
 
 class GoldenResponses(Base):
@@ -61,3 +64,4 @@ class GoldenResponses(Base):
     reason: Mapped[str] = mapped_column(String, nullable=False)
     true_label: Mapped[str] = mapped_column(String, nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
+    metric: Mapped[Metrics] = relationship(back_populates="model_responses")

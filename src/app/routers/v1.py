@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
@@ -21,12 +21,14 @@ from app.evaluation.evaluate_model import eval_model
 from app.logging.logg import logger
 from app.schemas.pydantic_schemas import (
     CurrentModelMetrics,
-    Final,
     InputText,
     LLM_Response,
-    ModelMetricsALL,
+    ValidateModelMetrics,
+    EvaluationOut,
+    ValidateModelResponseGolden,
     ModelResponseGolden,
     PredictionsResponse,
+    ShowEvaluation,
     Token,
     UserCreate,
     UserResponse,
@@ -229,8 +231,80 @@ async def show_user_predictions(
     return predictions
 
 
-@router.get("/test_model_on_golden_data", response_model=Final)
-async def show_model_metrics(
+@router.post("/golden_data/evaluate_model", response_model=ShowEvaluation)
+async def evaluate_model(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Endpoint will send golden data to model in async fasion.
+    Gather model outputs, calcaute the metrics and save it in DB
+    """
+    user_id = verify_access_token(token, settings)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    accuracy, f1, recall, precision, data = await eval_model()
+
+    current_metrics = ValidateModelMetrics(
+        accuracy=accuracy,
+        model_name=settings.ai_model.model_name,
+        f1=f1,
+        recall=recall,
+        precision=precision,
+    )
+    current_metrics_db = Metrics(
+        accuracy=current_metrics.accuracy,
+        f1=current_metrics.f1,
+        recall=current_metrics.recall,
+        precision=current_metrics.precision,
+        model_name=settings.ai_model.model_name,
+    )
+    db.add(current_metrics_db)
+    await db.commit()
+    await db.refresh(current_metrics_db)  # mamy ID i nowy model
+
+    # Data validation
+    model_output_validated = [
+        ValidateModelResponseGolden(**model_output)  # type:ignore
+        for model_output in data
+    ]
+
+    validated_model_responses_db_obj = []
+    for output in model_output_validated:
+        new_model_output_db = GoldenResponses(
+            metric_id=current_metrics_db.id,
+            model_label=output.model_label,
+            confidence=output.confidence,
+            reason=output.reason,
+            true_label=output.true_label,
+            text=output.text,
+        )
+        validated_model_responses_db_obj.append(new_model_output_db)
+        db.add(new_model_output_db)
+
+    await db.commit()
+
+    for db_obj in validated_model_responses_db_obj:
+        await db.refresh(db_obj)
+
+    return ShowEvaluation(
+        metrics=CurrentModelMetrics.model_validate(current_metrics_db),
+        model_responses=[
+            ModelResponseGolden.model_validate(model_response)
+            for model_response in validated_model_responses_db_obj
+        ],
+    )
+
+
+@router.get("/golden_data/get_all_metrics", response_model=list[EvaluationOut])
+async def get_all_metrics(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -243,104 +317,133 @@ async def show_model_metrics(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    accuracy, f1, recall, precision, data_to_send_back = await eval_model()
-
-    previous_metrics_id_obj = await db.execute(
-        select(Metrics).order_by(Metrics.id.desc())
+    all_responses_obj = await db.execute(
+        select(Metrics).options(selectinload(Metrics.model_responses))
     )
-    previous_metrics_id = previous_metrics_id_obj.scalars().first()
+    all_responses = all_responses_obj.scalars().all()
 
-    if previous_metrics_id:
-        id = previous_metrics_id.id + 1
-    else:
-        id = 1
+    if not all_responses:
+        raise HTTPException(status_code=404, detail="No previous metrics found")
 
-    # Pydantic Validation
-    current_metrics_pydantic = CurrentModelMetrics(
-        id=id,
-        accuracy=accuracy,
-        f1=f1,
-        recall=recall,
-        precision=precision,
-        model_name=settings.ai_model.model_name,
-        date=datetime.now(UTC),
-    )
-    # Metrics Validation
+    x = [EvaluationOut.model_validate(result) for result in all_responses]
+    return x
 
-    new_metrics = Metrics(
-        accuracy=current_metrics_pydantic.accuracy,
-        f1=current_metrics_pydantic.f1,
-        recall=current_metrics_pydantic.recall,
-        precision=current_metrics_pydantic.precision,
-        model_name=settings.ai_model.model_name,
-    )
 
-    db.add(new_metrics)
-    await db.commit()
-    await db.refresh(new_metrics)
+# TODO ========================= TODO
 
-    last_metric_obj = await db.execute(
-        select(Metrics).order_by(Metrics.id.desc()).limit(1)
-    )  # take first ID (last metric added to table - it is associated with input that model recived)
 
-    last_metric = last_metric_obj.scalars().first()
+# @router.get("/test_model_on_golden_data", response_model=Final)
+# async def show_model_metrics(
+#     token: str = Depends(oauth2_scheme),
+#     db: AsyncSession = Depends(get_db),
+#     settings: Settings = Depends(get_settings),
+# ):
+#     user_id = verify_access_token(token, settings)
 
-    # TODO no error, check later
-    # Model Responses Validation
-    for response in data_to_send_back:
-        validated_response = ModelResponseGolden(**response)  # type:ignore
+#     if not user_id:
+#         raise HTTPException(
+#             status_code=401,
+#             detail="Invalid or expired token",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
 
-        new_response = GoldenResponses(
-            metric_id=last_metric.id,  # type: ignore
-            model_label=validated_response.model_label,
-            confidence=validated_response.confidence,
-            reason=validated_response.reason,
-            true_label=validated_response.true_label,
-            text=validated_response.text,
-        )
+#     accuracy, f1, recall, precision, data_to_send_back = await eval_model()
 
-        db.add(new_response)
+#     previous_metrics_id_obj = await db.execute(
+#         select(Metrics).order_by(Metrics.id.desc())
+#     )
+#     previous_metrics_id = previous_metrics_id_obj.scalars().first()
 
-    await db.commit()
+#     if previous_metrics_id:
+#         id = previous_metrics_id.id + 1
+#     else:
+#         id = 1
 
-    previous_metrics_obj = await db.execute(
-        select(Metrics).order_by(Metrics.id.desc()).offset(1)
-    )  # do not take the first metrcis since they are tne new onse and will be presented as current metrics
-    previous_metrics = previous_metrics_obj.scalars().all()
+#     # Pydantic Validation
+#     current_metrics_pydantic = CurrentModelMetrics(
+#         id=id,
+#         accuracy=accuracy,
+#         f1=f1,
+#         recall=recall,
+#         precision=precision,
+#         model_name=settings.ai_model.model_name,
+#         date=datetime.now(UTC),
+#     )
+#     # Metrics Validation
 
-    # if previous_metrics:  # there are some previous metrics
-    #     previous_metrics_pydantic = PreviousModelMetrics.model_validate(
-    #         {"previous_metrics": previous_metrics}
-    #     )
+#     new_metrics = Metrics(
+#         accuracy=current_metrics_pydantic.accuracy,
+#         f1=current_metrics_pydantic.f1,
+#         recall=current_metrics_pydantic.recall,
+#         precision=current_metrics_pydantic.precision,
+#         model_name=settings.ai_model.model_name,
+#     )
 
-    # else:  # no previous metrics
-    #     previous_metrics_pydantic = None
-    if previous_metrics:
-        previous_metrics_pydantic = [
-            CurrentModelMetrics.model_validate(metric) for metric in previous_metrics
-        ]
-    else:
-        previous_metrics_pydantic = None
+#     db.add(new_metrics)
+#     await db.commit()
+#     await db.refresh(new_metrics)
 
-    all_metrics_pydantic = ModelMetricsALL(
-        current_metrics=current_metrics_pydantic,
-        previous_metrics=previous_metrics_pydantic,
-    )
+#     last_metric_obj = await db.execute(
+#         select(Metrics).order_by(Metrics.id.desc()).limit(1)
+#     )  # take first ID (last metric added to table - it is associated with input that model recived)
 
-    # Take all data - model responses soorted the same way as metrics
+#     last_metric = last_metric_obj.scalars().first()
 
-    model_responses_obj = await db.execute(
-        select(GoldenResponses).order_by(GoldenResponses.metric_id.desc())
-    )
-    model_responses = model_responses_obj.scalars().all()
+#     # TODO no error, check later
+#     # Model Responses Validation
+#     for response in data_to_send_back:
+#         validated_response = ModelResponseGolden(**response)  # type:ignore
 
-    all_model_responses_pydantic = [
-        ModelResponseGolden.model_validate(response) for response in model_responses
-    ]
+#         new_response = GoldenResponses(
+#             metric_id=last_metric.id,  # type: ignore
+#             model_label=validated_response.model_label,
+#             confidence=validated_response.confidence,
+#             reason=validated_response.reason,
+#             true_label=validated_response.true_label,
+#             text=validated_response.text,
+#         )
 
-    final_response = Final(
-        metrics=all_metrics_pydantic, responses=all_model_responses_pydantic
-    )
+#         db.add(new_response)
 
-    return final_response
+#     await db.commit()
+
+#     previous_metrics_obj = await db.execute(
+#         select(Metrics).order_by(Metrics.id.desc()).offset(1)
+#     )  # do not take the first metrcis since they are tne new onse and will be presented as current metrics
+#     previous_metrics = previous_metrics_obj.scalars().all()
+
+#     # if previous_metrics:  # there are some previous metrics
+#     #     previous_metrics_pydantic = PreviousModelMetrics.model_validate(
+#     #         {"previous_metrics": previous_metrics}
+#     #     )
+
+#     # else:  # no previous metrics
+#     #     previous_metrics_pydantic = None
+#     if previous_metrics:
+#         previous_metrics_pydantic = [
+#             CurrentModelMetrics.model_validate(metric) for metric in previous_metrics
+#         ]
+#     else:
+#         previous_metrics_pydantic = None
+
+#     all_metrics_pydantic = ModelMetricsALL(
+#         current_metrics=current_metrics_pydantic,
+#         previous_metrics=previous_metrics_pydantic,
+#     )
+
+#     # Take all data - model responses soorted the same way as metrics
+
+#     model_responses_obj = await db.execute(
+#         select(GoldenResponses).order_by(GoldenResponses.metric_id.desc())
+#     )
+#     model_responses = model_responses_obj.scalars().all()
+
+#     all_model_responses_pydantic = [
+#         ModelResponseGolden.model_validate(response) for response in model_responses
+#     ]
+
+#     final_response = Final(
+#         metrics=all_metrics_pydantic, responses=all_model_responses_pydantic
+#     )
+
+#     return final_response
