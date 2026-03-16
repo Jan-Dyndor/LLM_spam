@@ -16,17 +16,24 @@ The system wraps an LLM behind a clean API layer and applies **backend engineeri
 
 # Running the Project
 
-Clone the repository:
-https://github.com/Jan-Dyndor/LLM_spam
+A) With Docker:
+**COMMING SOON**
 
-Create a virtual environment:
+B) Witout Docker:
+
+1. Install Redis
+
+2. Clone the repository:
+   https://github.com/Jan-Dyndor/LLM_spam
+
+3. Create a virtual environment:
 
 ```
 python -m venv .venv
 source .venv/bin/activate
 ```
 
-Install the project dependencies:
+4. Install the project dependencies:
 
 ```
 pip install -e .
@@ -34,7 +41,7 @@ pip install -e .
 
 -e . installs the package based on pyproject.toml.
 
-Create a `.env` file in the project root:
+5. Create a `.env` file in the project root:
 
 ```env
 GEMINI_API_KEY=your_google_ai_studio_api_key
@@ -144,6 +151,10 @@ Endpoints requiring authentication:
 3. Use token to access protected endpoints
 
 ## Redis Caching
+
+This project uses Redis for caching model responses.
+
+You must have a Redis instance running locally.
 
 The /classify endpoint uses Redis caching.
 
