@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from typing import Literal
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class InputText(BaseModel):
@@ -46,3 +47,50 @@ class PredictionsResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class ValidateModelMetrics(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    accuracy: float
+    model_name: str
+    f1: float
+    recall: float
+    precision: float
+
+
+class CurrentModelMetrics(ValidateModelMetrics):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    date: datetime
+
+
+class ValidateModelResponseGolden(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    model_label: str
+    confidence: float
+    reason: str
+    true_label: str
+    text: str
+
+
+class ModelResponseGolden(ValidateModelResponseGolden):
+    model_config = ConfigDict(from_attributes=True)
+    metric_id: int | None = None
+
+
+class ShowEvaluation(BaseModel):
+    metrics: CurrentModelMetrics
+    model_responses: list[ModelResponseGolden]
+
+
+class EvaluationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    accuracy: float
+    model_name: str
+    f1: float
+    recall: float
+    precision: float
+    date: datetime
+    model_responses: list[ModelResponseGolden]

@@ -16,15 +16,22 @@ from app.authentication.auth import (
 )
 from app.config.settings import Settings, get_settings
 from app.db.database import get_db
-from app.db.db_models import Predictions, User
+from app.db.db_models import GoldenResponses, Metrics, Predictions, User
+from app.evaluation.evaluate_model import eval_model
 from app.logging.logg import logger
 from app.schemas.pydantic_schemas import (
+    CurrentModelMetrics,
+    EvaluationOut,
     InputText,
     LLM_Response,
+    ModelResponseGolden,
     PredictionsResponse,
+    ShowEvaluation,
     Token,
     UserCreate,
     UserResponse,
+    ValidateModelMetrics,
+    ValidateModelResponseGolden,
 )
 from app.services.spam_classification import classify_spam
 
@@ -222,3 +229,104 @@ async def show_user_predictions(
 
     predictions = existing_user.spam
     return predictions
+
+
+@router.post("/golden_data/evaluate_model", response_model=ShowEvaluation)
+async def evaluate_model(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Endpoint will send golden data to model in async fasion.
+    Gather model outputs, calcaute the metrics and save it in DB
+    Show to user metrics with correspoonding model responses
+    """
+    user_id = verify_access_token(token, settings)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    accuracy, f1, recall, precision, data = await eval_model()
+
+    # Pydantic validation - metrics
+    current_metrics = ValidateModelMetrics(
+        accuracy=accuracy,
+        model_name=settings.ai_model.model_name,
+        f1=f1,
+        recall=recall,
+        precision=precision,
+    )
+    current_metrics_db = Metrics(
+        accuracy=current_metrics.accuracy,
+        f1=current_metrics.f1,
+        recall=current_metrics.recall,
+        precision=current_metrics.precision,
+        model_name=settings.ai_model.model_name,
+    )
+    db.add(current_metrics_db)
+    await db.commit()
+    await db.refresh(current_metrics_db)  # to get metric ID
+
+    # Data validation
+    model_output_validated = [
+        ValidateModelResponseGolden(**model_output)  # type:ignore
+        for model_output in data
+    ]
+
+    validated_model_responses_db_obj = []
+    # needed to later refresh objects to possess their ID's outside loop
+
+    for output in model_output_validated:
+        new_model_output_db = GoldenResponses(
+            metric_id=current_metrics_db.id,
+            model_label=output.model_label,
+            confidence=output.confidence,
+            reason=output.reason,
+            true_label=output.true_label,
+            text=output.text,
+        )
+        validated_model_responses_db_obj.append(new_model_output_db)
+        db.add(new_model_output_db)
+
+    await db.commit()
+
+    for db_obj in validated_model_responses_db_obj:
+        await db.refresh(db_obj)
+
+    return ShowEvaluation(
+        metrics=CurrentModelMetrics.model_validate(current_metrics_db),
+        model_responses=[
+            ModelResponseGolden.model_validate(model_response)
+            for model_response in validated_model_responses_db_obj
+        ],
+    )
+
+
+@router.get("/golden_data/get_all_metrics", response_model=list[EvaluationOut])
+async def get_all_metrics(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    user_id = verify_access_token(token, settings)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    all_responses_obj = await db.execute(
+        select(Metrics).options(selectinload(Metrics.model_responses))
+    )
+    all_responses = all_responses_obj.scalars().all()
+
+    if not all_responses:
+        raise HTTPException(status_code=404, detail="No previous metrics found")
+
+    return [EvaluationOut.model_validate(result) for result in all_responses]

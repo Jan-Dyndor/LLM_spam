@@ -25,6 +25,8 @@ dependencies = [
     "python-multipart",
     "aiosqlite",
     "greenlet",
+    "pandas",
+    "scikit-learn",
 ]
 
 [tool.setuptools]

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -21,7 +21,7 @@ class Predictions(Base):
     __tablename__ = "predictions"  # type: ignore
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), nullable=True, index=True
+        ForeignKey("users.id"), nullable=False, index=True
     )
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     input_text: Mapped[str] = mapped_column(String, nullable=False)
@@ -35,3 +35,33 @@ class Predictions(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="spam")
+
+
+class Metrics(Base):
+    __tablename__ = "metrics"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    accuracy: Mapped[float] = mapped_column(Float, nullable=False)
+    f1: Mapped[float] = mapped_column(Float, nullable=False)
+    recall: Mapped[float] = mapped_column(Float, nullable=False)
+    precision: Mapped[float] = mapped_column(Float, nullable=False)
+    model_name: Mapped[str] = mapped_column(String, nullable=False)
+    date: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    model_responses: Mapped[list[GoldenResponses]] = relationship(
+        back_populates="metric"
+    )
+
+
+class GoldenResponses(Base):
+    __tablename__ = "gold_responses"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    metric_id: Mapped[int] = mapped_column(
+        ForeignKey("metrics.id"), nullable=False, index=True
+    )
+    model_label: Mapped[str] = mapped_column(String, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    reason: Mapped[str] = mapped_column(String, nullable=False)
+    true_label: Mapped[str] = mapped_column(String, nullable=False)
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    metric: Mapped[Metrics] = relationship(back_populates="model_responses")

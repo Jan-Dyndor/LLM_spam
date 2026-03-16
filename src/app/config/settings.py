@@ -12,6 +12,7 @@ class AI_Model(BaseModel):
     model_name: str = "gemini-flash-lite-latest"
     temperature: float = 0.2
     promp_version: str = "v1"
+    test_dataset_name: str = "test_data_v1_2_examples"
 
 
 class Redis(BaseModel):
