@@ -21,17 +21,17 @@ from app.evaluation.evaluate_model import eval_model
 from app.logging.logg import logger
 from app.schemas.pydantic_schemas import (
     CurrentModelMetrics,
+    EvaluationOut,
     InputText,
     LLM_Response,
-    ValidateModelMetrics,
-    EvaluationOut,
-    ValidateModelResponseGolden,
     ModelResponseGolden,
     PredictionsResponse,
     ShowEvaluation,
     Token,
     UserCreate,
     UserResponse,
+    ValidateModelMetrics,
+    ValidateModelResponseGolden,
 )
 from app.services.spam_classification import classify_spam
 
@@ -240,6 +240,7 @@ async def evaluate_model(
     """
     Endpoint will send golden data to model in async fasion.
     Gather model outputs, calcaute the metrics and save it in DB
+    Show to user metrics with correspoonding model responses
     """
     user_id = verify_access_token(token, settings)
 
@@ -252,6 +253,7 @@ async def evaluate_model(
 
     accuracy, f1, recall, precision, data = await eval_model()
 
+    # Pydantic validation - metrics
     current_metrics = ValidateModelMetrics(
         accuracy=accuracy,
         model_name=settings.ai_model.model_name,
@@ -268,7 +270,7 @@ async def evaluate_model(
     )
     db.add(current_metrics_db)
     await db.commit()
-    await db.refresh(current_metrics_db)  # mamy ID i nowy model
+    await db.refresh(current_metrics_db)  # to get metric ID
 
     # Data validation
     model_output_validated = [
@@ -277,6 +279,8 @@ async def evaluate_model(
     ]
 
     validated_model_responses_db_obj = []
+    # needed to later refresh objects to possess their ID's outside loop
+
     for output in model_output_validated:
         new_model_output_db = GoldenResponses(
             metric_id=current_metrics_db.id,
@@ -325,5 +329,4 @@ async def get_all_metrics(
     if not all_responses:
         raise HTTPException(status_code=404, detail="No previous metrics found")
 
-    x = [EvaluationOut.model_validate(result) for result in all_responses]
-    return x
+    return [EvaluationOut.model_validate(result) for result in all_responses]

@@ -134,6 +134,8 @@ Endpoints requiring authentication:
 - /classify
 - /users/me/predictions
 - /me
+- /golden/data/evaluate_model
+- /golden_data/get_all_metrics
 
 ## Authentication flow:
 
@@ -352,6 +354,7 @@ Responses:
 ```JSON
 {
   "username": "string",
+  "emial" : "string@email.com",
   "id": 1
 }
 ```

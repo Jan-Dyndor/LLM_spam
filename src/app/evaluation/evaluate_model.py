@@ -3,11 +3,9 @@ import asyncio
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
-from app.evaluation.golden_data_set.golden_data import test_df, list_examples
+from app.evaluation.golden_data_set.golden_data import test_df
 from app.schemas.pydantic_schemas import LLM_Response
 from app.services.spam_classification import classify_spam
-
-# SCIKIT LEARN METRIC Calcualtion fuynctions
 
 
 async def ask_llm_godlen_data() -> list[LLM_Response]:
@@ -57,8 +55,8 @@ def calcualte_metrics(dataframe: pd.DataFrame):
 
 
 async def eval_model():
-    # responces = await ask_llm_godlen_data()
-    responces_df = preprocess_to_df(list_examples)  # TODO del to na czas debugowania
+    responces = await ask_llm_godlen_data()
+    responces_df = preprocess_to_df(responces)
     accuracy, f1, recall, precision, data = calcualte_metrics(responces_df)
 
     return float(accuracy), float(f1), float(recall), float(precision), data
