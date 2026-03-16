@@ -1,159 +1,613 @@
 # LLM Spam Classifier API
 
-**Production-ready FastAPI backend for spam classification powered by a Large Language Model (Google Gemini).**
+Production-ready **FastAPI backend for spam classification powered by a Large Language Model (Google Gemini).**
 
-This project demonstrates how to wrap an LLM behind a clean API layer with strict validation, structured prompts, and production-oriented architecture.
+This project demonstrates how to build a **robust AI-powered API service** with:
 
----
+- structured LLM prompts
+- strict output validation
+- retry mechanisms
+- caching
+- authentication
+- database persistence
+- model evaluation pipelines
 
-## Overview
+The system wraps an LLM behind a clean API layer and applies **backend engineering best practices for AI systems.**
 
-**LLM Spam Classifier** is a backend service that classifies email or SMS messages as:
+# Running the Project
+
+Clone the repository:
+https://github.com/Jan-Dyndor/LLM_spam
+
+Create a virtual environment:
+
+```
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install the project dependencies:
+
+```
+pip install -e .
+```
+
+-e . installs the package based on pyproject.toml.
+
+Create a `.env` file in the project root:
+
+```env
+GEMINI_API_KEY=your_google_ai_studio_api_key
+SECRET_KEY=your_secret_key
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+# Project Overview
+
+**LLM Spam Classifier** is an API service that classifies text messages (emails, SMS, etc.) as:
 
 - **spam**
 - **ham** (not spam)
 
-The system enforces:
+The service ensures reliability and consistency by enforcing:
 
-- **Strict JSON responses** from the LLM
-- **Pydantic-based** input/output validation
-- **Clear separation of concerns**
-- **Deterministic inference**
-- **Versioned API design**
+- structured JSON responses from the LLM
+- Pydantic validation
+- deterministic prompt design
+- API versioning
+- caching of model responses
+- retry logic for LLM calls
+- user authentication
+- database persistence
+- evaluation with a golden dataset
 
-This project focuses on clean architecture, robust LLM integration, and AI backend engineering best practices.
+The project is designed as a **production-style AI backend**, demonstrating how LLM models can be integrated into real backend systems.
 
 ---
 
-## How the System Works
+# System Architecture
 
-1. **Client** sends a POST request to: `/v1/classify`
-2. **Input** is validated via Pydantic.
-3. **Router** delegates to the service layer.
-4. **Service layer**:
-   - Builds structured prompt
-   - Calls Gemini API
-   - Parses JSON output
-   - Validates structured response
-5. **Validated response** is returned to the client.
+```text
+The system follows a layered architecture.
+Client
+│
+▼
+FastAPI Router
+│
+▼
+Service Layer
+│
+▼
+LLM Client (Google Gemini)
+│
+▼
+Structured JSON Response
+│
+▼
+Pydantic Validation
+│
+▼
+Database + API Response
+```
 
-### Expected Model Output
+### Workflow
+
+1. Client sends request to `/v1/classify`
+2. Input is validated using **Pydantic**
+3. Router delegates processing to the **service layer**
+4. Service builds a **structured prompt**
+5. Gemini API is called
+6. Model response is parsed and validated
+7. Result is cached and stored in the database
+8. Structured output is returned to the client
+
+---
+
+# Expected LLM Response Format
+
+The LLM must return strictly formatted JSON:
 
 ```json
 {
   "label": "spam" | "ham",
-  "confidence": 0.0 - 1.0,
+  "confidence": 0.0,
   "reason": "short explanation"
 }
 ```
 
-```json
-LLM_SPAM_CLASSIFIER/
-│
-├── src/
-│   └── app/
-│       ├── llm_clients/
-│       │   └── gemini.py
-│       │
-│       ├── prompts/
-│       │   └── prompt_v1.py
-│       │
-│       ├── routers/
-│       │   └── v1.py
-│       │
-│       ├── schemas/
-│       │   └── pydantic_schemas.py
-│       │
-│       ├── services/
-│       │   └── spam_classification.py
-│       │
-│       └── main.py
-│
-├── .env
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+This response is validated by Pydantic models before being returned.
+
+### Key Features
+
+LLM Integration
+
+- Google Gemini API
+- structured prompts
+- strict JSON output
+- deterministic inference pipeline
+
+### Authentication (JWT)
+
+Endpoints requiring authentication:
+
+- /classify
+- /users/me/predictions
+- /me
+
+## Authentication flow:
+
+1. Create user
+2. Obtain JWT token
+3. Use token to access protected endpoints
+
+## Redis Caching
+
+The /classify endpoint uses Redis caching.
+
+Purpose
+
+Avoid repeated calls to the LLM when the same text was already classified.
+
+Behavior
+
+```
+User sends text
+        │
+        ▼
+Check Redis cache
+        │
+   ┌────┴─────┐
+   │          │
+Cache hit   Cache miss
+   │          │
+Return       Call LLM
+cached       │
+response     ▼
+         Save to cache
 ```
 
-## ADD LATER
+### Cache TTL
 
-- to pip isntall pre-commit and then isnall pre-commit for ruff
-- write about tenacity retry -pplied @retry to classify_spam, allowing exceptions from generate_llm_response to propagate and be handled by Tenacity. Introduced should_retry to control retry behavior based on API status codes and custom LLM exceptions.
-  Added a new LLM_API_Error carrying the underlying API status code.
-- Added Redis cache to /classify endpoint. It allows to check whether someone already asked AI to classify the same string. If yes : return cahced version if no ask LLM model. Added TTl of 300 second (5 min) to each user query to LLM. Remember. to set up maxmemory in dockercompose file. USer also can set up maxmemory and policy in Redis in redis.conf file - write about that. Also remeber to mention that after every app shutdown Redis DB is cleaned!
-- Add that user has to add his/hers Google Srudio API Key in .env file in root of the projekct anemd as GEMINI_API_KEY=......
-  REDIS**HOST=redis
-  REDIS**PORT=6379 .env file also have this so it will overwrite the settings if neded and will be easier to use Docker also add SECRET_KEY fou can generate one by using python -c "import secrets; print(secrets.token_hex(32))"
-  - Added Database and full JWT authentication. Now endpoints :
-    /classify require logging , after auth it saves user input and model output od DB
+300 seconds (5min)
 
-        Inoput {
+**Notes**
 
-    "text": "string"
-    }
+- Redis database is cleared when the application stops
+- memory limits can be configured using:
 
-responce:
+  ```
+  redis.conf
+  maxmemory
+  maxmemory-policy
+  ```
+
+  or inside docker-compose.yml.
+
+The result is:
+
+- cached in Redis
+
+- saved in the database
+
+## Retry Mechanism
+
+The project uses Tenacity for retrying LLM calls.
+
+Applied decorator:
+
+```
+@retry
+```
+
+Retry logic handles:
+
+- transient API failures
+- rate limit responses
+- temporary network issues
+  Custom retry control is implemented via:
+
+```
+should_retry()
+```
+
+Custom exception:
+
+```
+LLM_API_Error
+```
+
+This exception carries the underlying API status code, allowing Tenacity to decide whether retrying is appropriate.
+
+## Async Architecture
+
+The application is fully asynchronous.
+
+Components converted to async:
+
+- FastAPI endpoints
+
+- SQLAlchemy database layer
+
+- Google Gemini API client
+
+- test suite
+
+Benefits
+
+- better concurrency
+
+- improved scalability
+
+- efficient handling of external API calls
+
+The Gemini client is created during application lifespan and reused across requests.
+
+## Database
+
+The system stores:
+
+- user accounts
+- classification history
+- model evaluation results
+
+Main tables:
+
+```
+users
+posts
+metrics
+gold_responses
+```
+
+## Stored Model Predictions
+
+Every /classify request stores:
+
+- input text
+
+- predicted label
+
+- model confidence
+
+- explanation
+
+- prompt version
+
+- timestamp
+
+Users can later retrieve their prediction history.
+
+# API Endpoints
+
+- Health Check
+
+```
+GET /health
+```
+
+Response:
+
+```JSON
 {
-"label": "spam",
-"confidence": 1,
-"reason": "string"
+"status": "OK"
 }
-/create_user - create user wit user name ( unique), email (unique) and password ( later is hashed)
+```
+
+- Create User
+
+```
+  POST /create_user
+```
+
 Input:
-{
-"username": "string",
-"email": "user@example.com",
-"password": "stringst"
-}
 
-        responce :
-        {
-        "username": "string",
-        "email": "user@example.com",
-        "id": 0
-        }
+```JSON
+{
+  "username": "string",
+  "email": "user@example.com",
+  "password": "string"
+}
+```
 
-/token - endpoint provides user with JWT TOKEN
-Input from OAuth2PasswordRequestForm
+Response:
+
+```JSON
 {
-"access_token": "string",
-"token_type": "string"
+  "username": "string",
+  "email": "user@example.com",
+  "id": 1
 }
-/me - get info about current loged user - model response
+```
+
+- Login
+
+```
+POST /token
+```
+
+Uses:
+
+```
+OAuth2PasswordRequestForm
+```
+
+Responses:
+
+```JSON
 {
-"username": "string",
-"email": "user@example.com",
-"id": 0
+  "access_token": "string",
+  "token_type": "bearer"
 }
-/my_posts - endpoint is only avaliabe to logged users, it allows to check model responces, and detials aboput the model call
-Responce:
+```
+
+- Current User
+
+```
+GET /me
+```
+
+Responses:
+
+```JSON
+{
+  "username": "string",
+  "id": 1
+}
+```
+
+- Classify Text
+
+Requires authentication.
+
+```
+POST /classify
+```
+
+Input:
+
+```JSON
+{
+  "text": "You won a free iPhone"
+}
+```
+
+Responses:
+
+```JSON
+{
+  "label": "spam",
+  "confidence": 0.97,
+  "reason": "Message promotes a suspicious offer"
+}
+```
+
+- Show my predictions ( AI model output)
+
+```
+POST /users/me/predictions
+```
+
+Requires authentication.
+
+Response:
+
+```JSON
+{
+  "id": 1,
+  "user_id": 12,
+  "model_name": "gemini-2.0-flash",
+  "input_text": "You won a free iPhone!",
+  "label": "spam",
+  "confidence": 0.97,
+  "reason": "The message promotes a suspicious prize which is a common spam pattern.",
+  "prompt_version": "v1",
+  "is_spam": 1,
+  "date": "2026-03-05T12:43:07"
+}
+```
+
+- Run model evaluation
+
+```
+POST /golden_data/evaluate_model"
+```
+
+Requires authentication.
+
+Response:
+
+```JSON
+{
+  "metrics": {
+    "id": 1,
+    "accuracy": 0.95,
+    "precision": 0.96,
+    "recall": 0.94,
+    "f1_score": 0.95,
+    "model_name": "gemini-2.0-flash",
+    "date": "2026-03-16T14:30:00"
+  },
+  "model_responses": [
+    {
+      "metric_id": 1,
+      "model_label": "spam",
+      "confidence": 0.98,
+      "reason": "Message contains typical spam patterns such as urgent financial opportunity.",
+      "true_label": "spam",
+      "text": "You have been selected for an exclusive investment opportunity."
+    },
+    {
+      "metric_id": 1,
+      "model_label": "ham",
+      "confidence": 0.87,
+      "reason": "The message appears to be a legitimate reminder.",
+      "true_label": "ham",
+      "text": "Reminder: your dentist appointment is scheduled for Monday at 15:30."
+    }
+  ]
+}
+```
+
+Endpoint do async API call to AI model, calcualtes and saves metrics and responses
+
+- Show all models metris and responses
+
+```
+GET /golden_data/get_all_metrics
+```
+
+Requires authentication.
+
+Response:
+
+```JSON
 [
-{
-"id": 0,
-"user_id": 0,
-"model_name": "string",
-"input_text": "string",
-"label": "string",
-"confidence": 0,
-"reason": "string",
-"prompt_version": "string",
-"is_spam": 0,
-"date": "2026-03-05T12:43:07.701Z"
-}
+  {
+    "id": 1,
+    "accuracy": 0.95,
+    "model_name": "gemini-2.0-flash",
+    "f1": 0.94,
+    "recall": 0.93,
+    "precision": 0.96,
+    "date": "2026-03-16T14:30:00",
+    "model_responses": [
+      {
+        "metric_id": 1,
+        "model_label": "spam",
+        "confidence": 0.98,
+        "reason": "Message contains typical spam patterns such as urgent financial opportunity.",
+        "true_label": "spam",
+        "text": "You have been selected for an exclusive investment opportunity."
+      },
+      {
+        "metric_id": 1,
+        "model_label": "ham",
+        "confidence": 0.87,
+        "reason": "The message appears to be a legitimate reminder.",
+        "true_label": "ham",
+        "text": "Reminder: your dentist appointment is scheduled for Monday at 15:30."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "accuracy": 0.90,
+    "model_name": "gemini-2.0-flash",
+    "f1": 0.89,
+    "recall": 0.88,
+    "precision": 0.91,
+    "date": "2026-03-15T12:00:00",
+    "model_responses": [
+      {
+        "metric_id": 2,
+        "model_label": "spam",
+        "confidence": 0.91,
+        "reason": "The message promotes an unrealistic offer which indicates spam.",
+        "true_label": "spam",
+        "text": "Claim your free investment opportunity now."
+      }
+    ]
+  }
 ]
-/ health
-output: {
-"Status": "OK"
-}
-So user have to be logged to be able to use /classify endpint and his/her respnse from AI model is saved in DB later to be viewd
+```
 
-- changed DB from sync to async , changed endpoints to asycn , chenkged Google genai client to async client andd added to lifespan as cache so client is reused at each API connection
-- rewriteded all tests to async
+### Golden Dataset Evaluation
 
-- added new tables i DB gold_responses and metrics. Table metrics will hold data like accurac, recall, pecision, f1 score model nanme and date - those metrics are calcuated based on the model results from Golden Data set. Table gold_responsec contains fields like metric_id ( its ofregin key to table metrics , since we can send few examples to test model responses and we calcualte metrics to theose responces as a whoel we have an opstion to connect mterics reesults to specific data that model worked on), model_label (spam / ham),confidence , reason, true_lable from golden data set ane text based on. what model decides.
+The project includes a model evaluation pipeline.
 
-Also I added endpoint to send godlen_data to Google AI model and calcuatle fresh metrics. This endpoint saves those metrics and output of mdoel to above tables and retrives the prvious metricvs and results of mdoel work and sends it back to user
+Purpose
 
-- GOLDEN data is only 2 examples beacuse rare limiting in google AI API high ( 20 RPD and 10 RPM). So ot save some API use one 2 examples - it is just to demonstrate thats important no monitor model performance
+Monitor LLM performance over time.
 
-- re-write this to 2 endpoints one will serve all mertics and prediciosn secodn will obtain fresh predictions and calcuate metrics by sendig api. all to LLM
+Tables:
+
+```
+metrics
+gold_responses
+```
+
+Metrics stored:
+
+- accuracy
+
+- precision
+
+- recall
+
+- F1 score
+
+- model name
+
+- evaluation date
+
+Each evaluation run stores:
+
+- predicted labels
+
+- ground truth labels
+
+- model explanations
+
+The gold_responses table links predictions with metrics via:
+
+```
+metric_id
+```
+
+### Evaluation Endpoints
+
+Two endpoints are provided.
+
+**Retrieve stored evaluation results**
+
+Returns previous evaluation runs.
+
+**Run new evaluation**
+
+Sends golden dataset examples to the LLM and computes fresh metrics.
+
+**Due to Gemini free tier limits:**
+
+```
+20 requests per day
+10 requests per minute
+```
+
+the golden dataset contains only two examples.
+
+This is intentional and serves only as a demonstration of the evaluation pipeline.
+
+## Project Structure
+
+```
+LLM_SPAM_CLASSIFIER/
+
+src/app
+
+llm_clients/
+gemini.py
+
+prompts/
+prompt_v1.py
+
+routers/
+v1.py
+
+schemas/
+pydantic_schemas.py
+
+services/
+spam_classification.py
+
+main.py
+
+.env
+pyproject.toml
+README.md
+```
+
+## Planned Improvements
+
+- Dockerized deployment
+- Observability with Prometheus and Grafana
