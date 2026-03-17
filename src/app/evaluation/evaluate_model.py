@@ -51,7 +51,7 @@ def calcualte_metrics(dataframe: pd.DataFrame):
 
     data_dict = dataframe.to_dict(orient="records")
 
-    return accuracy, f1, recall, precision, data_dict
+    return float(accuracy), float(f1), float(recall), float(precision), data_dict
 
 
 async def eval_model():
@@ -59,4 +59,4 @@ async def eval_model():
     responces_df = preprocess_to_df(responces)
     accuracy, f1, recall, precision, data = calcualte_metrics(responces_df)
 
-    return float(accuracy), float(f1), float(recall), float(precision), data
+    return accuracy, f1, recall, precision, data
