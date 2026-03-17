@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import jwt
+import pandas as pd
 import pytest
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, SecretStr
@@ -279,3 +280,50 @@ async def client(session_fixture, redis_fixture, settings_fixture):
         yield client
 
     app.dependency_overrides.clear()
+
+
+# =============
+# Test model eval function
+# =============
+@pytest.fixture
+def model_responses_goloden_data_test():
+
+    example_response_1 = LLM_Response(
+        label="spam", confidence=0.56, reason="Test response 1"
+    )
+
+    example_response_2 = LLM_Response(
+        label="spam", confidence=1, reason="Test response 2"
+    )
+    return [example_response_1, example_response_2]
+
+
+@pytest.fixture
+def model_input_golden_data_test():
+    test_data_json = [
+        {
+            "text": "You have been selected for an exclusive investment opportunity. Act fast.",
+            "label": "spam",
+        },
+        {
+            "text": "Reminder: your dentist appointment is scheduled for Monday at 15:30.",
+            "label": "ham",
+        },
+    ]
+    return pd.DataFrame(test_data_json)
+
+
+@pytest.fixture
+def correct_df_to_calc_metrics(
+    model_input_golden_data_test, model_responses_goloden_data_test
+):
+
+    model_responses = [
+        response.model_dump() for response in model_responses_goloden_data_test
+    ]
+
+    df = pd.DataFrame.from_records(model_responses)
+    df = df.rename(columns={"label": "model_label"})
+    df["true_label"] = model_input_golden_data_test["label"]
+    df["text"] = model_input_golden_data_test["text"]
+    return df

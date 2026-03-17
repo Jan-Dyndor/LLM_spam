@@ -15,7 +15,7 @@ from app.services.spam_classification import classify_spam
 async def test_classify_happy(
     mock_llm_responce, user_input: str, Model_Response_Happy: str
 ):
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         mock_llm_responce.return_value = Model_Response_Happy
         result = await classify_spam(user_input)
 
@@ -49,7 +49,7 @@ async def test_classify_wrong_validation_label(
 ):
     mock_llm.return_value = Model_Response_Wrong_Validation_Label
 
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         with pytest.raises(LLMInvalidValidationError):
             await classify_spam(user_input)
     assert mock_llm.call_count == 3
@@ -62,7 +62,7 @@ async def test_classify_wrong_validation_confidence_1(
 ):
     mock_llm.return_value = Model_Response_Wrong_Validation_Confidence_1
 
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         with pytest.raises(LLMInvalidValidationError):
             await classify_spam(user_input)
 
@@ -76,7 +76,7 @@ async def test_classify_wrong_validation_confdence_2(
 ):
     mock_llm.return_value = Model_Response_Wrong_Validation_Confidence_2
 
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         with pytest.raises(LLMInvalidValidationError):
             await classify_spam(user_input)
 
@@ -89,7 +89,7 @@ async def test_classify_wrong_validation_reason(
     mock_llm, user_input, Model_Response_Wrong_Validation_Reason
 ):
     mock_llm.return_value = Model_Response_Wrong_Validation_Reason
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         with pytest.raises(LLMInvalidValidationError):
             await classify_spam(user_input)
 
@@ -107,7 +107,7 @@ async def test_classify_wrong_json_then_happy(
     invalid_out = Model_Response_Not_Json
     valid_out = Model_Response_Happy
     mock_llm.side_effect = [invalid_out, valid_out]
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         await classify_spam(user_input)
 
     assert mock_llm.call_count == 2
@@ -125,7 +125,7 @@ async def test_classify_wrong_validation_then_happy(
     invalid = Model_Response_Wrong_Validation_Confidence_1
     mock_llm.side_effect = [invalid, valid]
 
-    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):
+    with patch.object(classify_spam.retry, "wait", wait_fixed(0)):  # type: ignore
         await classify_spam(user_input)
 
     assert mock_llm.call_count == 2

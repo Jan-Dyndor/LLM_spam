@@ -1,7 +1,5 @@
 import pandas as pd
 
-from app.schemas.pydantic_schemas import LLM_Response
-
 
 dataset_name = [
     {
@@ -15,7 +13,3 @@ dataset_name = [
 ]
 
 test_df = pd.DataFrame(dataset_name)
-
-example_response = LLM_Response(label="spam", confidence=0.56, reason="Test")
-example_response2 = LLM_Response(label="spam", confidence=1, reason="222")
-list_examples = [example_response, example_response2]
