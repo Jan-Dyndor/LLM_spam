@@ -3,3 +3,4 @@ tests/
 .venv/
 .git/
 __pycache__/
+.env.docker
