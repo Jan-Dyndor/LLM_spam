@@ -9,6 +9,7 @@ description = "LLM spam classifier"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi",
+    "fastapi[standard]",
     "pydantic",
     "google-genai",
     "uvicorn",

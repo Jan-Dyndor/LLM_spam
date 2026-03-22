@@ -6,10 +6,17 @@ RUN mkdir -p /app/data
 
 COPY pyproject.toml .
 COPY src ./src
+RUN pip install --no-cache-dir -e . 
 
-RUN pip install -e . 
-RUN pip install "fastapi[standard]"
-RUN pip install redis
+# Poor cache since pyproject.toml-based editable install requires project code.
+# Small code changes trigger reinstall of the package layer.
+# In a future project, a lockfile / requirements export / uv can improve this.
 
+RUN useradd -m -u 1001 nonroot
+RUN chown -R nonroot:nonroot /app
+USER nonroot
+
+
+EXPOSE 8000
 
 CMD ["fastapi", "run", "src/app/main.py", "--port", "8000"]
