@@ -17,7 +17,32 @@ The system wraps an LLM behind a clean API layer and applies **backend engineeri
 # Running the Project
 
 A) With Docker:
-**COMMING SOON**
+1. Clone the repository:
+   https://github.com/Jan-Dyndor/LLM_spam
+
+2. Create new env file
+```
+.env.docker
+```
+This files should contain
+```env
+GEMINI_API_KEY=your_google_ai_studio_api_key
+SECRET_KEY=your_secret_key
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+3. Build docker images in root of the project
+```
+docker compose build
+```
+
+4. Run docker containers
+```
+docker compose up
+```
+
+
 
 B) Witout Docker:
 
@@ -616,6 +641,7 @@ spam_classification.py
 
 main.py
 
+.env.docker
 .env
 pyproject.toml
 README.md
@@ -623,5 +649,4 @@ README.md
 
 ## Planned Improvements
 
-- Dockerized deployment
 - Observability with Prometheus and Grafana

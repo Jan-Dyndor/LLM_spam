@@ -22,7 +22,11 @@ class Redis(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=root / ".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=root / ".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+    )
 
     gemini_api_key: SecretStr = Field(..., validation_alias="GEMINI_API_KEY")
 
