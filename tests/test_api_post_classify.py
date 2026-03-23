@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.db.db_models import Predictions, User
 from app.exceptions.exceptions import LLMInvalidJSONError, LLMInvalidValidationError
@@ -53,7 +53,7 @@ async def test_ask_llm_happy(
     redis_fixture,
     client,
     session_fixture,
-    valid_token_fixture,
+    token_fxture_factory,
 ):
     """
     Function tests the whole endpoint - Auth , DB
@@ -62,17 +62,17 @@ async def test_ask_llm_happy(
 
     """
     # Add User to DB
-    new_user = User(
-        id=1, username="test_user", email="test@email.com", password_hash="test"
-    )
+    new_user = User(username="test_user", email="test@email.com", password_hash="test")
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
+
+    token = token_fxture_factory(new_user.id)
 
     mock_llm.return_value = Model_Response_Happy_JSON_Validated
     redis_fixture.get.return_value = None
 
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.post(
         "/v1/classify", json={"text": user_input}, headers=headers
@@ -90,7 +90,7 @@ async def test_ask_llm_happy(
         user_input, 300, Model_Response_Happy_REDIS
     )
     endpoint_db_result_object = await session_fixture.execute(
-        select(Predictions).where(Predictions.user_id == 1)
+        select(Predictions).where(Predictions.user_id == int(new_user.id))
     )
     all_data_obj = await session_fixture.execute(select(Predictions))
     all_data = all_data_obj.scalars().all()
@@ -99,20 +99,24 @@ async def test_ask_llm_happy(
     assert endpoint_bd_result.confidence == 0.95
     assert len(all_data) == 1
 
+    # DB Clean-up
+    await session_fixture.execute(text("delete from predictions"))
+    await session_fixture.commit()
+    await session_fixture.execute(text("delete from users"))
+    await session_fixture.commit()
+
 
 @pytest.mark.anyio
 async def test_ask_llm_wrong_user_input(
     user_input_wrong_empty,
-    invalid_token_fixture,
     redis_fixture,
     client,
     session_fixture,
+    token_fxture_factory,
 ):
-    """
-    Function do not test AUTH and DB or REDIS
-    User input validation happens before all of that, tets onl;y requres header since oauth2_scheme is in Depends
-    """
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+
+    token = token_fxture_factory(1)
+    headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_empty}, headers=headers
@@ -132,13 +136,10 @@ async def test_ask_llm_wrong_user_input_int(
     redis_fixture,
     client,
     session_fixture,
-    invalid_token_fixture,
+    token_fxture_factory,
 ):
-    """
-    Function do not test AUTH and DB or REDIS
-    User input validation happens before all of that
-    """
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+    token = token_fxture_factory(1)
+    headers = {"Authorization": f"Bearer {token}"}
     response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_int}, headers=headers
     )
@@ -156,13 +157,14 @@ async def test_ask_llm_wrong_user_input_too_long(
     redis_fixture,
     client,
     session_fixture,
-    invalid_token_fixture,
+    token_fxture_factory,
 ):
     """
-    Function do not test DB, AUTH, REDIS
-    Only user input
+    Function do not test REDIS
+    Only user input.
     """
-    headers = {"Authorization": f"Bearer {invalid_token_fixture}"}
+    token = token_fxture_factory(1)
+    headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.post(
         "/v1/classify", json={"text": user_input_wrong_too_long}, headers=headers
@@ -183,11 +185,12 @@ async def test_ask_llm_wrong_llm_response_json(
     redis_fixture,
     client,
     session_fixture,
-    valid_token_fixture,
+    token_fxture_factory,
 ):
     """Function tests /classify endpoint with API LLM error and no DB queries were done"""
 
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    token = token_fxture_factory(1)  # valid token
+    headers = {"Authorization": f"Bearer {token}"}
     # mock_verify_token.return_value = "1"
     mock_llm.side_effect = LLMInvalidJSONError()
     redis_fixture.get.return_value = None
@@ -213,10 +216,11 @@ async def test_ask_llm_wrong_llm_response_walidation(
     redis_fixture,
     client,
     session_fixture,
-    valid_token_fixture,
+    token_fxture_factory,
 ):
     """Function tests /classify endpoint with API LLM error and no DB queries were done"""
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    token = token_fxture_factory(1)
+    headers = {"Authorization": f"Bearer {token}"}
 
     mock_llm.side_effect = LLMInvalidValidationError()
     redis_fixture.get.return_value = None
@@ -243,17 +247,18 @@ async def test_ask_llm_cache_hit(
     Model_Response_Happy_REDIS_Response,
     client,
     session_fixture,
-    valid_token_fixture,
+    token_fxture_factory,
 ):
     """Function test /classify endpoint with redis cache hit, saving output to DB assuming User id = 1 alredy in DB"""
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
-    new_user = User(
-        id=1, username="test_user", email="test@email.com", password_hash="test"
-    )
+
+    new_user = User(username="test_user", email="test@email.com", password_hash="test")
 
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
+
+    token = token_fxture_factory(new_user.id)
+    headers = {"Authorization": f"Bearer {token}"}
 
     redis_fixture.get.return_value = Model_Response_Happy_REDIS_Response
 
@@ -262,7 +267,7 @@ async def test_ask_llm_cache_hit(
     )
 
     data_obj = await session_fixture.execute(
-        select(Predictions).where(Predictions.user_id == 1)
+        select(Predictions).where(Predictions.user_id == new_user.id)
     )
     data = data_obj.scalars().first()
 
@@ -278,6 +283,11 @@ async def test_ask_llm_cache_hit(
     )
     assert data.model_name == "test_model"
 
+    # DB clean-up
+    await session_fixture.execute(text("delete from predictions"))
+    await session_fixture.execute(text("delete from users"))
+    await session_fixture.commit()
+
 
 @pytest.mark.anyio
 @patch("app.routers.v1.classify_spam")
@@ -289,11 +299,13 @@ async def test_ask_llm_no_user_in_db(
     redis_fixture,
     Model_Response_Happy_JSON_Validated,
     Model_Response_Happy_REDIS,
-    valid_token_fixture,
+    token_fxture_factory,
 ):
     """Function tests /classify endpoint in scenerio that somehow  User who invoked endpoint is not present in DB = no saving model output"""
 
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    token = token_fxture_factory(1)
+
+    headers = {"Authorization": f"Bearer {token}"}
     users_obj = await session_fixture.execute(select(User))
     users = users_obj.scalars().all()
     assert users == []

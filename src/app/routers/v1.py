@@ -80,11 +80,11 @@ async def ask_llm(
 
     if user_id:
         logger.info("Attempt to save user query to DB")
-        result_user_id = await db.execute(select(User).where(User.id == user_id))
+        result_user_id = await db.execute(select(User).where(User.id == user_id_int))
         user = result_user_id.scalars().first()
         if user:
             new_prediction = Predictions(
-                user_id=user_id,
+                user_id=user_id_int,
                 model_name=settings.ai_model.model_name,
                 input_text=input.text,
                 label=value.label,

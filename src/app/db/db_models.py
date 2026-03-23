@@ -26,7 +26,7 @@ class Predictions(Base):
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     input_text: Mapped[str] = mapped_column(String, nullable=False)
     label: Mapped[str] = mapped_column(String(4), nullable=False)
-    confidence: Mapped[float] = mapped_column(Integer, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
     reason: Mapped[str] = mapped_column(String, nullable=False)
     prompt_version: Mapped[str] = mapped_column(String, nullable=False)
     is_spam_by_use: Mapped[str] = mapped_column(String, nullable=True)

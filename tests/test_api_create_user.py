@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.db.db_models import User
 
@@ -18,14 +18,17 @@ async def test_create_user_happy(client, session_fixture, test_user_valid):
     usesrs = user_objs.scalars().all()
 
     assert user is not None
-    assert user.id == 1
+    assert user.id > 0
     assert user.email == "test_user@email.com"
     assert len(usesrs) == 1
 
     assert response.status_code == 200
-    assert response.json()["id"] == 1
     assert response.json()["username"] == "test_username"
     assert response.json()["email"] == "test_user@email.com"
+
+    # Manual DB cleanup
+    await session_fixture.execute(text("DELETE FROM users"))
+    await session_fixture.commit()
 
 
 @pytest.mark.anyio
@@ -37,13 +40,14 @@ async def test_create_user_invalid_user(client, test_user_invalid):
 
 @pytest.mark.anyio
 async def test_client_username_exists(client, session_fixture, test_user_valid):
+
     new_user = User(
         username="test_username".lower(),
         email="new_test_email@email.com".lower(),
         password_hash="new_test_password_12345678",
     )
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
 
     response = await client.post("v1/create_user", json=test_user_valid)
@@ -54,7 +58,11 @@ async def test_client_username_exists(client, session_fixture, test_user_valid):
     assert response.status_code == 409
     assert response.json()["detail"] == "Email or User Name already exist"
     assert len(users) == 1
-    assert users[0].id == 1
+    assert users[0].id == new_user.id
+
+    # DB clean-up
+    await session_fixture.execute(text("Delete from users"))
+    await session_fixture.commit()
 
 
 @pytest.mark.anyio
@@ -66,7 +74,7 @@ async def test_create_user_email_exists(client, test_user_valid, session_fixture
         password_hash="new_test_password_12345678",
     )
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
 
     response = await client.post("v1/create_user", json=test_user_valid)
@@ -77,4 +85,8 @@ async def test_create_user_email_exists(client, test_user_valid, session_fixture
     assert response.status_code == 409
     assert response.json()["detail"] == "Email or User Name already exist"
     assert len(users) == 1
-    assert users[0].id == 1
+    assert users[0].id == new_user.id
+
+    # DB Clean-up
+    await session_fixture.execute(text("Delete from users"))
+    await session_fixture.commit()

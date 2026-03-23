@@ -6,7 +6,8 @@ from app.db.db_models import User
 
 
 @pytest.mark.anyio
-async def test_me_happy(client, session_fixture, valid_token_fixture):
+async def test_me_happy(client, session_fixture, token_fxture_factory):
+
     new_user = User(
         username="test_username".lower(),
         email="test_user@email.com".lower(),
@@ -14,15 +15,17 @@ async def test_me_happy(client, session_fixture, valid_token_fixture):
     )
 
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
 
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    token = token_fxture_factory(new_user.id)
+
+    headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.get("v1/me", headers=headers)
 
     assert response.status_code == 200
-    assert response.json()["id"] == 1
+    assert response.json()["id"] == new_user.id
     assert response.json()["username"] == "test_username"
 
 
@@ -38,9 +41,10 @@ async def test_me_invalid_token(client, invalid_token_fixture):
 
 
 @pytest.mark.anyio
-async def test_me_no_user_in_db(client, valid_token_fixture, session_fixture):
+async def test_me_no_user_in_db(client, token_fxture_factory, session_fixture):
 
-    headers = {"Authorization": f"Bearer {valid_token_fixture}"}
+    token = token_fxture_factory(1)
+    headers = {"Authorization": f"Bearer {token}"}
 
     response = await client.get("v1/me", headers=headers)
 

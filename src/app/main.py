@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     get_settings.cache_clear()
     # Before start of app
     settings = get_settings()  # Load ENV first = Fail Fast
-
+    print(settings.postgres.db_url)
     # create Database
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)

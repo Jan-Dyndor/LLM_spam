@@ -208,12 +208,21 @@ def settings_fixture():
 
 
 @pytest.fixture()
-def valid_token_fixture(settings_fixture):
+def token_fxture_factory(settings_fixture):
+    """
+    Factory that returns function that can create valid token using current user ID from Data Base
+
+    Requires: User ID form DB
+    """
     settings = settings_fixture
-    payload = {"sub": "1", "exp": datetime.now(UTC) + timedelta(minutes=5)}
-    return jwt.encode(
-        payload, settings.secret_key.get_secret_value(), settings.algorythm
-    )
+
+    def create_token(id):
+        payload = {"sub": f"{id}", "exp": datetime.now(UTC) + timedelta(minutes=5)}
+        return jwt.encode(
+            payload, settings.secret_key.get_secret_value(), settings.algorythm
+        )
+
+    return create_token
 
 
 @pytest.fixture
@@ -243,7 +252,7 @@ def expired_token_fixture(settings_fixture):
 @pytest.fixture()
 async def session_fixture():
     engine = create_async_engine(
-        url="sqlite+aiosqlite://", connect_args={"check_same_thread": False}
+        url="postgresql+asyncpg://jan:1234@localhost:5432/test_llm_spam_api"
     )
 
     AsyncSessionLocalTest = async_sessionmaker(
@@ -255,6 +264,7 @@ async def session_fixture():
 
     async with AsyncSessionLocalTest() as session_test:
         yield session_test
+        await session_test.rollback()  # delete all data in db for fresh tests
 
     await engine.dispose()
 

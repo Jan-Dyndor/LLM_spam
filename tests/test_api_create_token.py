@@ -14,7 +14,7 @@ async def test_token_happy(client, session_fixture, test_useer_request_form_vali
     )
 
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
 
     response = await client.post("v1/token", data=test_useer_request_form_valid)
@@ -45,10 +45,9 @@ async def test_user_wrong_password(
     )
 
     session_fixture.add(new_user)
-    await session_fixture.commit()
+    await session_fixture.flush()
     await session_fixture.refresh(new_user)
 
     response = await client.post("v1/token", data=test_useer_request_form_valid)
 
-    assert response.status_code == 401
     assert response.status_code == 401
