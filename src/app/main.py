@@ -7,11 +7,11 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import ConnectionError, Redis
 
 from app.config.settings import get_settings
+from app.db.database import Base, create_db_async_session, create_db_engine
 from app.exceptions.exceptions import AppExceptions
 from app.llm_clients.gemini import get_client
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
-from app.db.database import Base, create_async_session, create_engine
 
 # engine
 
@@ -24,11 +24,11 @@ async def lifespan(app: FastAPI):
     get_settings.cache_clear()
     # Before start of app
     settings = get_settings()  # Load ENV first = Fail Fast
-    engine = create_engine(settings)
+    engine = create_db_engine(settings)
 
-    session = create_async_session(engine)
+    db_session = create_db_async_session(engine)
     # add session to app
-    app.state.db_session_factory = session
+    app.state.db_session_factory = db_session
     # create Database
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
