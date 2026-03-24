@@ -30,6 +30,10 @@ GEMINI_API_KEY=your_google_ai_studio_api_key
 SECRET_KEY=your_secret_key
 REDIS_HOST=redis
 REDIS_PORT=6379
+POSTGRES__DB_URL="postgresql+asyncpg://user:password@postgres:5432/llm_spam_api_docker"
+POSTGRES_PASSWORD="password"
+POSTGRES_USER="user"
+POSTGRES_DB="db name"
 ```
 
 3. Build docker images in root of the project
@@ -48,17 +52,19 @@ B) Witout Docker:
 
 1. Install Redis
 
-2. Clone the repository:
+2. Install Postgress
+
+3. Clone the repository:
    https://github.com/Jan-Dyndor/LLM_spam
 
-3. Create a virtual environment:
+4. Create a virtual environment:
 
 ```
 python -m venv .venv
 source .venv/bin/activate
 ```
 
-4. Install the project dependencies:
+5. Install the project dependencies:
 
 ```
 pip install -e .
@@ -66,13 +72,20 @@ pip install -e .
 
 -e . installs the package based on pyproject.toml.
 
-5. Create a `.env` file in the project root:
+6. Create a `.env` file in the project root:
 
 ```env
 GEMINI_API_KEY=your_google_ai_studio_api_key
 SECRET_KEY=your_secret_key
 REDIS_HOST=localhost
 REDIS_PORT=6379
+POSTGRES__DB_URL="postgresql+asyncpg://user:password@localhost:5432/llm_spam_api"
+```
+
+7. Navigate to src/app and run project 
+
+```
+fastapi main.py
 ```
 
 # Project Overview
