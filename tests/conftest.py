@@ -11,10 +11,10 @@ from pydantic_settings import BaseSettings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config.settings import get_settings
-from app.db.database import get_db
+
 from app.db.db_models import Base
 from app.main import app
-from app.routers.v1 import get_reddis
+from app.routers.v1 import get_reddis, get_db
 from app.schemas.pydantic_schemas import LLM_Response
 
 

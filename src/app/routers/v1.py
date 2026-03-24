@@ -15,7 +15,7 @@ from app.authentication.auth import (
     verify_password,
 )
 from app.config.settings import Settings, get_settings
-from app.db.database import get_db
+
 from app.db.db_models import GoldenResponses, Metrics, Predictions, User
 from app.evaluation.evaluate_model import eval_model
 from app.logging.logg import logger
@@ -36,6 +36,12 @@ from app.schemas.pydantic_schemas import (
 from app.services.spam_classification import classify_spam
 
 router = APIRouter(prefix="/v1", tags=["v1"])
+
+
+# Create new session for each request
+async def get_db(request: Request):
+    async with request.app.state.db_session_factory() as session:
+        yield session
 
 
 def get_reddis(request: Request) -> Redis:

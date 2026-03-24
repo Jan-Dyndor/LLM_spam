@@ -11,7 +11,9 @@ from app.exceptions.exceptions import AppExceptions
 from app.llm_clients.gemini import get_client
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
-from app.db.database import Base, engine
+from app.db.database import Base, create_async_session, create_engine
+
+# engine
 
 
 set_up_logging()
@@ -22,7 +24,11 @@ async def lifespan(app: FastAPI):
     get_settings.cache_clear()
     # Before start of app
     settings = get_settings()  # Load ENV first = Fail Fast
-    print(settings.postgres.db_url)
+    engine = create_engine(settings)
+
+    session = create_async_session(engine)
+    # add session to app
+    app.state.db_session_factory = session
     # create Database
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
