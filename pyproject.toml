@@ -28,6 +28,7 @@ dependencies = [
     "greenlet",
     "pandas",
     "scikit-learn",
+    "asyncpg",
 ]
 
 [tool.setuptools]

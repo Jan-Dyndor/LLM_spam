@@ -21,6 +21,10 @@ class Redis(BaseModel):
     db: int = 0
 
 
+class PostgressDB(BaseModel):
+    db_url: str = "example"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=root / ".env",
@@ -36,6 +40,7 @@ class Settings(BaseSettings):
 
     ai_model: AI_Model = AI_Model()
     redis: Redis = Redis()
+    postgres: PostgressDB = PostgressDB()
 
 
 @lru_cache

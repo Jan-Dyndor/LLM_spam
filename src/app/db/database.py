@@ -1,23 +1,18 @@
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from pathlib import Path
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-db_file_location = Path(__file__).resolve().parents[3]
+def create_db_engine(settings):
+    db_url = settings.postgres.db_url
+    return create_async_engine(url=db_url)
 
-sql_url = f"sqlite+aiosqlite:///{db_file_location}/data/data.db"
 
-engine = create_async_engine(url=sql_url, connect_args={"check_same_thread": False})
-
-AsyncSessionLocal = async_sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+def create_db_async_session(engine):
+    AsyncSessionLocal = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    )
+    return AsyncSessionLocal
 
 
 class Base(DeclarativeBase):
     pass
-
-
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
