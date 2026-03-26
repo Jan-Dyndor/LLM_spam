@@ -15,6 +15,7 @@ services:
     container_name: my_redis
     ports:
       - "6379:6379"
+
   postgres:
     image: postgres:18
     container_name : my_postgres
@@ -25,5 +26,42 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    depends_on:
+      - alloy
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    privileged: true
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log:/var/log:ro
+    ports:
+      - "12345:12345"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana-data:/var/lib/grafana    
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+  
+
 volumes:
   postgres_data:
+  loki-data:
+  grafana-data:
+
