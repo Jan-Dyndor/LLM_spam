@@ -12,6 +12,7 @@ from app.exceptions.exceptions import AppExceptions
 from app.llm_clients.gemini import get_client
 from app.logging.logg import logger, set_up_logging
 from app.routers.v1 import router as v1_router
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # engine
 
@@ -58,6 +59,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")  # add prometheus
 
 app.include_router(v1_router)
 
