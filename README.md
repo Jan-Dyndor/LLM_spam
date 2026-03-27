@@ -98,12 +98,23 @@ REDIS_PORT=6379
 POSTGRES__DB_URL="postgresql+asyncpg://user:password@localhost:5432/db_name"
 ```
 **Create this Data base by hand - with exatly the same parameters as in URL**
+
 **Create also test DB (below credentials) by hand so all tests can pass**
 
 ```env
 url="postgresql+asyncpg://jan:1234@localhost:5432/test_llm_spam_api"
 ```
 7. Navigate to src/app and run project 
+
+First run in terminal Redis
+
+```
+redis-server
+```
+
+Make sure you have running Postgress
+
+Run application:
 
 ```
 fastapi main.py
