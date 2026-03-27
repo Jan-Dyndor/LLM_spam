@@ -142,6 +142,11 @@ The service ensures reliability and consistency by enforcing:
 The project is designed as a **production-style AI backend**, demonstrating how LLM models can be integrated into real backend systems.
 
 ---
+# Grafana setup
+1.
+
+
+
 
 # System Architecture
 
