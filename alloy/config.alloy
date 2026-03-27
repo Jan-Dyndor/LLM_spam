@@ -39,8 +39,9 @@ prometheus.scrape "app_metrics" {
 		},
 	]
 
-	metrics_path = "/metrics"
-	forward_to   = [prometheus.remote_write.local.receiver]
+	metrics_path    = "/metrics"
+	scrape_interval = "15s"
+	forward_to      = [prometheus.remote_write.local.receiver]
 }
 
 prometheus.remote_write "local" {
