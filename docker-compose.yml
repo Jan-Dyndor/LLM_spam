@@ -9,12 +9,19 @@ services:
     depends_on:
       - redis
       - postgres
+    restart: unless-stopped
+
+
 
   redis:
     image: redis:7-alpine
     container_name: my_redis
     ports:
       - "6379:6379"
+    restart: unless-stopped
+
+
+
   postgres:
     image: postgres:18
     container_name : my_postgres
@@ -24,6 +31,76 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    depends_on:
+      - alloy
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    privileged: true
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log:/var/log:ro
+    ports:
+      - "12345:12345"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+
+
+  prometheus: 
+    image: prom/prometheus
+    container_name: prometheus
+    command: 
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --web.enable-remote-write-receiver
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    depends_on:
+      - alloy
+
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana-data:/var/lib/grafana    
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+      - alloy
+      - prometheus
+      - app
+    restart: unless-stopped
+  
 
 volumes:
   postgres_data:
+  loki-data:
+  grafana-data:
+  prometheus_data:
+

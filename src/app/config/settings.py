@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parents[3]
 
 
 class AI_Model(BaseModel):
-    model_name: str = "gemini-flash-lite-latest"
+    model_name: str = "gemini-2.5-flash-lite"
     temperature: float = 0.2
     promp_version: str = "v1"
     test_dataset_name: str = "test_data_v1_2_examples"

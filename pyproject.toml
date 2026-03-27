@@ -29,6 +29,7 @@ dependencies = [
     "pandas",
     "scikit-learn",
     "asyncpg",
+    "prometheus_fastapi_instrumentator",
 ]
 
 [tool.setuptools]

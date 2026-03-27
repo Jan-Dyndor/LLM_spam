@@ -1,0 +1,51 @@
+// LOKI 
+discovery.docker "local_docker" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "logs_integrations_docker" {
+	targets = []
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "service_name"
+	}
+}
+
+loki.source.docker "docker_engine" {
+	host = "unix:///var/run/docker.sock"
+
+	targets       = discovery.docker.local_docker.targets
+	relabel_rules = discovery.relabel.logs_integrations_docker.rules
+
+	labels = {"platform" = "docker"}
+
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
+
+// Prometheus 
+prometheus.scrape "app_metrics" {
+	targets = [
+		{
+			__address__ = "app:8000",
+			job         = "app",
+		},
+	]
+
+	metrics_path    = "/metrics"
+	scrape_interval = "15s"
+	forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+prometheus.remote_write "local" {
+	endpoint {
+		url = "http://prometheus:9090/api/v1/write"
+	}
+}

@@ -14,9 +14,11 @@ This project demonstrates how to build a **robust AI-powered API service** with:
 
 The system wraps an LLM behind a clean API layer and applies **backend engineering best practices for AI systems.**
 
+For this taks I am using **gemini-2.5-flash-lite** and I recomend using this model. It was testes within appliction and working correctly.
+
 # Running the Project
 
-A) With Docker:
+A) With Docker (quick setup):
 1. Clone the repository:
    https://github.com/Jan-Dyndor/LLM_spam
 
@@ -30,10 +32,10 @@ GEMINI_API_KEY=your_google_ai_studio_api_key
 SECRET_KEY=your_secret_key
 REDIS_HOST=redis
 REDIS_PORT=6379
-POSTGRES__DB_URL="postgresql+asyncpg://user:password@postgres:5432/llm_spam_api_docker"
-POSTGRES_PASSWORD="password"
-POSTGRES_USER="user"
-POSTGRES_DB="db name"
+POSTGRES__DB_URL="postgresql+asyncpg://user:password@postgres:5432/db_name"
+POSTGRES_PASSWORD=password
+POSTGRES_USER=user
+POSTGRES_DB=db_name
 ```
 
 3. Build docker images in root of the project
@@ -45,10 +47,24 @@ docker compose build
 ```
 docker compose up
 ```
+5. For app open 
+```
+http://0.0.0.0:8000/docs
+```
+6 For Grafana open
+```
+http://localhost:3000/login
+```
+**username: admin**
 
+**password: admin**
 
+Navigate to Dashboards -> App Observability
 
-B) Witout Docker:
+Start making requests , tests, have fun and look at your logs and metrcis! 
+
+B) Witout Docker (dev setup):
+Without Grafana stack
 
 1. Install Redis
 
@@ -79,10 +95,26 @@ GEMINI_API_KEY=your_google_ai_studio_api_key
 SECRET_KEY=your_secret_key
 REDIS_HOST=localhost
 REDIS_PORT=6379
-POSTGRES__DB_URL="postgresql+asyncpg://user:password@localhost:5432/llm_spam_api"
+POSTGRES__DB_URL="postgresql+asyncpg://user:password@localhost:5432/db_name"
+```
+**Create this Data base by hand - with exatly the same parameters as in URL**
+
+**Create also test DB (below credentials) by hand so all tests can pass**
+
+```env
+url="postgresql+asyncpg://jan:1234@localhost:5432/test_llm_spam_api"
+```
+7. Navigate to src/app and run project 
+
+First run in terminal Redis
+
+```
+redis-server
 ```
 
-7. Navigate to src/app and run project 
+Make sure you have running Postgress
+
+Run application:
 
 ```
 fastapi main.py
@@ -110,6 +142,11 @@ The service ensures reliability and consistency by enforcing:
 The project is designed as a **production-style AI backend**, demonstrating how LLM models can be integrated into real backend systems.
 
 ---
+# Grafana setup
+1.
+
+
+
 
 # System Architecture
 

@@ -13,3 +13,5 @@ venv/
 dump.rdb
 data
 *.db
+grafana-data
+loki-data
